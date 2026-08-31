@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::cmp::max;
 use std::rc::Rc;
 
@@ -161,9 +161,15 @@ impl State {
         ctx.cls();
 
         // tweak later???
+        let mut fov: Option<&HashSet<Point>> = None;
+        let mut memory: Option<&HashSet<Point>> = None;
+
         if let Some(name) = &self.actor_awaiting_input {
             if let Some(present_actor) = self.actors.get(name) {
                 cam_offset = ( present_actor.position.0 - size.0/2, present_actor.position.1 - size.1/2 );
+
+                fov = present_actor.fov.as_ref();
+                memory = present_actor.memory.as_ref();
             }
         }
 
@@ -172,10 +178,37 @@ impl State {
             for x in 0..(map.tiles.dim().0 as i32) {
                 for y in 0..(map.tiles.dim().1 as i32) {
                     let spos = (x - cam_offset.0, y - cam_offset.1);
+
                     if Self::check_in_bounds(spos, size) {
-                        let tidx = map.tiles[[ x as usize, y as usize ]];
-                        let tile = map.tileset[tidx];
-                        ctx.set( spos.0, spos.1, tile.fg, tile.bg, to_cp437(tile.ch) );
+
+                        let pt = Point{x,y};
+                        if fov.is_none() || fov.unwrap().contains(&pt) {
+                            let tidx = map.tiles[[ x as usize, y as usize ]];
+                            let tile = map.tileset[tidx];
+                            ctx.set( spos.0, spos.1, tile.fg, tile.bg, to_cp437(tile.ch) );
+                        } else if memory.is_some() && memory.unwrap().contains(&pt) {
+                            let tidx = map.tiles[[ x as usize, y as usize ]];
+                            let tile = map.tileset[tidx];
+                            let fade = RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0};
+
+                            let fade_v = HSV::from(fade).v;
+                            let mut fg = RGBA::from(tile.fg);
+                            let mut bg = RGBA::from(tile.bg);
+
+                            let fg_v = HSV::from(fg).v;
+                            let bg_v = HSV::from(bg).v;
+
+                            if fg_v > fade_v {
+                                fg = fg.lerp(fade, 0.75);
+                            }
+                            if bg_v > fade_v {
+                                bg = bg.lerp(fade, 0.75);
+                            }
+
+                            ctx.set( spos.0, spos.1, fg, bg, to_cp437(tile.ch) );
+                        }
+
+
                     }
                 }
             }
@@ -184,8 +217,9 @@ impl State {
         // draw actors
         for a in self.actors.values() {
             let wpos = a.position;
+
             let spos = (wpos.0 - cam_offset.0, wpos.1 - cam_offset.1);
-            if Self::check_in_bounds(spos, size) {
+            if Self::check_in_bounds(spos, size) && (fov.is_none() || fov.unwrap().contains( &Point{x: wpos.0, y: wpos.1} ) ) {
                 let di = a.get_draw_info(); // retrieve tuple of (color, glyph)
                 ctx.set( spos.0, spos.1, di.0, (0,0,0), to_cp437(di.1) );
             }
@@ -272,7 +306,8 @@ fn main() -> BError {
         class: '@',
         color: (255, 255, 255),
         breath_interest: 32,
-        max_stability: 16
+        max_stability: 16,
+        sight_range: 32
     };
 
     let npc_kind = actor::ActorKind {
@@ -280,7 +315,8 @@ fn main() -> BError {
         class: 'c',
         color: (255, 128, 64),
         breath_interest: 32,
-        max_stability: 16
+        max_stability: 16,
+        sight_range: 24
     };
 
     let mut kind_table = HashMap::<String, Rc<ActorKind>>::new();
@@ -301,7 +337,9 @@ fn main() -> BError {
             max_wounds: 3
         }),
         overrides: HashMap::new(),
-        bonus_breath: 0
+        bonus_breath: 0,
+        fov: Some( HashSet::<Point>::new() ),
+        memory: Some( HashSet::<Point>::new() )
     };
 
     let mut aslin = Actor {
@@ -326,7 +364,9 @@ fn main() -> BError {
             max_wounds: 3
         }),
         overrides: HashMap::new(),
-        bonus_breath: 0
+        bonus_breath: 0,
+        fov: Some( HashSet::<Point>::new() ),
+        memory: None
     };
     let mut amerta = Actor {
         is_player: false,
@@ -350,7 +390,9 @@ fn main() -> BError {
             max_wounds: 3
         }),
         overrides: HashMap::new(),
-        bonus_breath: 0
+        bonus_breath: 0,
+        fov: Some( HashSet::<Point>::new() ),
+        memory: None
     };
     let mut lienne = Actor {
         is_player: false,
@@ -374,7 +416,9 @@ fn main() -> BError {
             max_wounds: 3
         }),
         overrides: HashMap::new(),
-        bonus_breath: 0
+        bonus_breath: 0,
+        fov: Some( HashSet::<Point>::new() ),
+        memory: None
     };
 
     let mut gs: State = State {
@@ -443,7 +487,7 @@ fn main() -> BError {
         vec![ bt, wt, lwt, uwt, fwt, rwt, dt ]
     );
 
-    let mut idx = 0;
+    let mut idx = 129;
     loop {
         let ps = m.is_passable(idx);
         if ps {
@@ -457,7 +501,10 @@ fn main() -> BError {
 
     player.position = (pt.x, pt.y);
 
-    let mut idx = 576;
+    player.update_fov( &m );
+
+
+    let mut idx = 524;
     loop {
         let ps = m.is_passable(idx);
         if ps {
@@ -466,6 +513,7 @@ fn main() -> BError {
             idx += 1;
         }
     }
+
     let npc_pt = m.index_to_point2d(idx);
     aslin.position = (npc_pt.x, npc_pt.y);
     amerta.position = (npc_pt.x + 1, npc_pt.y);
@@ -473,6 +521,7 @@ fn main() -> BError {
 
     gs.current_map = Some(m);
     gs.add_actor(player);
+
     gs.add_actor(aslin);
     gs.add_actor(amerta);
     gs.add_actor(lienne);

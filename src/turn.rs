@@ -82,6 +82,8 @@ impl ActionResolver for MoveStep {
                 f = 1.41421356;
             }
 
+            acting.update_fov(context.map);
+
             // edit the 1024 to account for varying actor speeds later on!
             return ActionResult::Succeeded( (1024 as f32 * f) as i32 );
         }

@@ -1,8 +1,11 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use rand::prelude::*;
 use rand::rngs::ChaCha20Rng;
+
+use bracket_lib::prelude::Point;
+use bracket_lib::pathfinding::field_of_view_set;
 
 use crate::turn::{Command, TurnAttempt};
 use crate::map::Map;
@@ -12,7 +15,8 @@ pub struct ActorKind {
     pub class: char,
     pub color: (u8, u8, u8),
     pub breath_interest: i32, // debt increases by this factor at engine tick-up. expressed as a fixed fraction of 4096, describing the added portion rather than the total.
-    pub max_stability: i32
+    pub max_stability: i32,
+    pub sight_range: i32
 }
 
 pub struct ActorOverrideTrait {}
@@ -33,6 +37,8 @@ pub struct Actor {
     pub health: Option<HealthComponent>,
     pub overrides: HashMap<String, ActorOverrideTrait>, // unique traits
     pub bonus_breath: i32, // added on at end of turn or at engine tick-up
+    pub fov: Option<HashSet<Point>>,
+    pub memory: Option<HashSet<Point>>
 }
 
 // organization -- gameplay functions
@@ -46,6 +52,16 @@ impl Actor {
 
         ta
     }
+
+    pub fn update_fov(&mut self, map: &Map) {
+        let hs = field_of_view_set( Point{ x: self.position.0, y:self.position.1 }, self.kind.sight_range, map );
+        if let Some(mem) = self.memory.take() {
+            let nmem = mem.union( &hs ).map( |e| e.clone() ).collect();
+            self.memory = Some(nmem);
+        }
+        self.fov = Some(hs);
+    }
+
 }
 
 // organization -- utilities
