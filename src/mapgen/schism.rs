@@ -8,6 +8,8 @@ use rand::distr::Uniform;
 
 use bracket_lib::geometry::Rect;
 
+use crate::mapgen::CarverHandle;
+
 
 
 pub struct SchismCarver {
@@ -21,9 +23,9 @@ pub struct SchismCarver {
 
 
 impl SchismCarver {
-    pub fn carve_schisms(&self, mut arr: ArrayViewMut<bool, Ix2>, n: usize, rng: &mut ChaCha20Rng) {
+    pub fn carve_schisms(&self, handle: &mut impl CarverHandle, n: usize, rng: &mut ChaCha20Rng) {
 
-        let sz = arr.dim();
+        let sz = handle.dim();
 
         for i in 0..n {
             let scale : f32 = rng.random::<f32>() * (self.scale_max - self.scale_min) + self.scale_min;
@@ -42,6 +44,8 @@ impl SchismCarver {
 
             let center_x = rng.random_range( inner.0..=inner.1 );
             let center_y = rng.random_range( inner.2..=inner.3 );
+
+            //print!("schism {}, {}\n", center_x, center_y);
 
             let angle = rng.random::<f32>() * (self.angle_max - self.angle_min) + self.angle_min;
 
@@ -81,10 +85,12 @@ impl SchismCarver {
                     let thresh_r = thresh_r * scale * self.param_b;
 
                     if rad < thresh_r {
-                        arr[[x as usize, y as usize]] = false;
+                        handle.carve( (x as usize, y as usize) );
                     }
                 }
             }
+
+            handle.push_batch();
         }
 
     }
