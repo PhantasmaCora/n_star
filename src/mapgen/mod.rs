@@ -34,7 +34,7 @@ pub struct MapGenerator {
 
 impl MapGenerator {
     pub fn generate_map(&self, tileset: Vec<Tile>) -> Map {
-        let mut rng = ChaCha20Rng::from_seed([12,9,3,4,5,6,7,8,255,2,3,4,5,6,7,8,1,2,3,12,5,6,7,8,9,2,3,4,5,6,7,8]);
+        let mut rng = ChaCha20Rng::from_seed([12,9,3,4,5,6,7,8,255,24,3,4,5,6,7,8,1,2,3,12,5,6,7,8,9,2,3,4,5,6,7,8]);
 
         let mut barr = Array2::<bool>::from_elem( (self.w, self.h), true );
 
@@ -176,33 +176,12 @@ impl TileSetMapper {
     fn map_tile(&self, src_arr: &ArrayRef<bool, Ix2>) -> Array2<usize> {
         let mut out = Array2::<usize>::default( src_arr.dim() );
 
-        let offs = vec![(-1,0), (1,0), (0,-1), (0,1)];
-
         for x in 0..src_arr.dim().0 {
             for y in 0..src_arr.dim().1 {
                 if !src_arr[[x,y]] {
                     continue;
                 }
-
-                let mut determinant = 0;
-
-                for (idx, o) in offs.iter().enumerate() {
-                    let ox = (x as i32 + o.0) as usize;
-                    let oy = (y as i32 + o.1) as usize;
-
-                    if (o.0 < 0 && x == 0) || ox >= src_arr.dim().0 || ( o.1 < 0 && y == 0 ) || oy >= src_arr.dim().1 || src_arr[[ox, oy]] {
-                        determinant += 2_i32.pow(idx as u32);
-                    }
-                }
-
-                out[[x,y]] = match determinant {
-                    15 => 6,
-                    7 => 2,
-                    11 => 3,
-                    13 => 5,
-                    14 => 4,
-                    _ => 1
-                }
+                out[[x,y]] = 1;
             }
         }
 

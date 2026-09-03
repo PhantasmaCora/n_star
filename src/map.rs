@@ -9,6 +9,8 @@ use ndarray::{Array2};
 use bracket_lib::prelude::*;
 use bracket_lib::algorithm_traits::{Algorithm2D, BaseMap};
 
+pub mod tile_render;
+use tile_render::TileRender;
 
 
 pub struct Map {
@@ -17,11 +19,10 @@ pub struct Map {
     pub exclusive_occupancy: HashMap<(i32, i32), String>
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize)]
 pub struct Tile {
     pub fg: (u8,u8,u8),
     pub bg: (u8,u8,u8),
-    pub ch: char,
+    pub tr: Box<dyn TileRender>,
     pub passable: bool,
     pub opaque: bool,
 }

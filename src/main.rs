@@ -21,9 +21,14 @@ use crate::npc_brain::StandardMonsterBrain;
 
 pub mod map;
 use crate::map::{Map, Tile};
+use crate::map::tile_render::{TileRenderContext, TileRender, TileDrawType, FixedTileRender, Wall4WayTileRender};
 
 pub mod mapgen;
 use mapgen::MapGenerator;
+
+
+
+const EIGHT_WAYS: [(i32, i32); 8] = [(-1,-1), (0,-1), (1,-1), (-1,0), (1,0), (-1,1), (0,1), (1,1)];
 
 
 
@@ -179,35 +184,79 @@ impl State {
                 for y in 0..(map.tiles.dim().1 as i32) {
                     let spos = (x - cam_offset.0, y - cam_offset.1);
 
-                    if Self::check_in_bounds(spos, size) {
+                    let pt = Point{x,y};
 
-                        let pt = Point{x,y};
+                    if Self::check_in_bounds(spos, size) && ( (fov.is_none() || fov.unwrap().contains(&pt)) || (memory.is_some() && memory.unwrap().contains(&pt)) ) {
+
+                        let tidx = map.tiles[[ x as usize, y as usize ]];
+                        let tile = &map.tileset[tidx];
+
+                        let mut neighbors = [None; 8];
+
+                        for (idx, offs) in EIGHT_WAYS.iter().enumerate() {
+                            let ox = x + offs.0;
+                            let oy = y + offs.1;
+
+                            let opt = (ox as usize, oy as usize);
+
+                            let o_bracketpt = Point{x: ox, y: oy};
+
+                            if ( ox < 0 || ox > map.tiles.dim().0 as i32 || oy < 0 || oy > map.tiles.dim().1 as i32 ) || (
+                                ( fov.is_some() && !fov.unwrap().contains( &o_bracketpt ) ) &&
+                                ( memory.is_none() || !memory.unwrap().contains( &o_bracketpt ) )
+                            ) {
+                                continue;
+                            }
+
+                            neighbors[idx] = Some( map.tiles[[opt.0, opt.1]] );
+                        }
+
+                        let tr_ctx = TileRenderContext{
+                            me: tidx,
+                            neighbors
+                        };
+
+                        let mut fg_color : RGBA = (0,0,0).into();
+                        let mut bg_color : RGBA = (0,0,0).into();
+                        let mut character : char = ' ';
+
+                        match tile.tr.get_draw(tr_ctx, &map.tileset) {
+                            TileDrawType::Dont => {continue;}
+                            TileDrawType::Regular(ch, flip) => {
+                                character = ch;
+                                if flip {
+                                    fg_color = tile.bg.into();
+                                    bg_color = tile.fg.into();
+                                } else {
+                                    fg_color = tile.fg.into();
+                                    bg_color = tile.bg.into();
+                                }
+                            },
+                            TileDrawType::Override{ch, fg, bg} => {
+                                character = ch;
+                                fg_color = fg.into();
+                                bg_color = bg.into();
+                            }
+                        }
+
                         if fov.is_none() || fov.unwrap().contains(&pt) {
-                            let tidx = map.tiles[[ x as usize, y as usize ]];
-                            let tile = map.tileset[tidx];
-                            ctx.set( spos.0, spos.1, tile.fg, tile.bg, to_cp437(tile.ch) );
-                        } else if memory.is_some() && memory.unwrap().contains(&pt) {
-                            let tidx = map.tiles[[ x as usize, y as usize ]];
-                            let tile = map.tileset[tidx];
+                            // actually we dont need to change anything
+                        } else {
                             let fade = RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0};
 
                             let fade_v = HSV::from(fade).v;
-                            let mut fg = RGBA::from(tile.fg);
-                            let mut bg = RGBA::from(tile.bg);
-
-                            let fg_v = HSV::from(fg).v;
-                            let bg_v = HSV::from(bg).v;
+                            let fg_v = HSV::from(fg_color).v;
+                            let bg_v = HSV::from(bg_color).v;
 
                             if fg_v > fade_v {
-                                fg = fg.lerp(fade, 0.75);
+                                fg_color = fg_color.lerp(fade, 0.75);
                             }
                             if bg_v > fade_v {
-                                bg = bg.lerp(fade, 0.75);
+                                bg_color = bg_color.lerp(fade, 0.75);
                             }
-
-                            ctx.set( spos.0, spos.1, fg, bg, to_cp437(tile.ch) );
                         }
 
+                        ctx.set( spos.0, spos.1, fg_color, bg_color, to_cp437(character) );
 
                     }
                 }
@@ -436,55 +485,30 @@ fn main() -> BError {
     let bt = Tile{
         fg: (96, 96, 96),
         bg: (0,0,0),
-        ch: '.',
+        tr: Box::new( FixedTileRender{ch: '.'} ),
         passable: true,
         opaque: false
     };
     let wt = Tile{
         fg: (64, 128, 208),
         bg: (0,0,0),
-        ch: '■',
+        tr:  Box::new( Wall4WayTileRender{
+            connects: vec![1usize].drain(..).collect(),
+            lower:('▄', false),
+            upper:('▀', false),
+            left:('▌', false),
+            right:('▐', false),
+            horizontal:('─', true),
+            vertical:('│', true),
+            misc:('■', false)
+        } ),
         passable: false,
         opaque: true
     };
-    let lwt = Tile{
-        fg: (64, 128, 208),
-        bg: (0,0,0),
-        ch: '▄',
-        passable: false,
-        opaque: true
-    };
-    let uwt = Tile{
-        fg: (64, 128, 208),
-        bg: (0,0,0),
-        ch: '▀',
-        passable: false,
-        opaque: true
-    };
-    let fwt = Tile{
-        fg: (64, 128, 208),
-        bg: (0,0,0),
-        ch: '▌',
-        passable: false,
-        opaque: true
-    };
-    let rwt = Tile{
-        fg: (64, 128, 208),
-        bg: (0,0,0),
-        ch: '▐',
-        passable: false,
-        opaque: true
-    };
-    let dt = Tile{
-        fg: (0,0,0),
-        bg: (0,0,0),
-        ch: '.',
-        passable: false,
-        opaque: true
-    };
+
     let mg = MapGenerator{w: 128, h: 128};
     let m = mg.generate_map(
-        vec![ bt, wt, lwt, uwt, fwt, rwt, dt ]
+        vec![ bt, wt ]
     );
 
     let mut idx = 129;
@@ -528,3 +552,5 @@ fn main() -> BError {
 
     main_loop(context, gs)
 }
+
+
