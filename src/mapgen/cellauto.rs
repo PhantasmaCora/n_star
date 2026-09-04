@@ -101,6 +101,10 @@ impl SimpleBooleanCellAuto {
                         handle.carve((x,y)); // death
                     } else if !st && ( count >= self.s_params.2 && count <= self.s_params.3 ) {
                         handle.fill((x,y)); // birth
+                    } else if st {
+                        handle.fill((x,y)); // survival
+                    } else {
+                        handle.carve((x,y)); // stayin dead
                     }
                 }
             }

@@ -13,10 +13,14 @@ pub mod tile_render;
 use tile_render::TileRender;
 
 
+use crate::item::InvItem;
+
+
 pub struct Map {
     pub tileset: Vec<Tile>,
     pub tiles: Array2<usize>,
-    pub exclusive_occupancy: HashMap<(i32, i32), String>
+    pub exclusive_occupancy: HashMap<(i32, i32), String>,
+    pub non_exclusive_occupancy: HashMap<(i32, i32), Vec<NonExclusiveOccupant>>
 }
 
 pub struct Tile {
@@ -27,18 +31,67 @@ pub struct Tile {
     pub opaque: bool,
 }
 
+#[derive(Debug)]
+pub enum NonExclusiveOccupant {
+    Item(InvItem)
+}
+
+
 
 impl Map {
     pub fn empty_map( size: (usize, usize), blank: Tile ) -> Map {
         let tiles = Array2::zeros(size);
         let tileset = vec![blank];
         let exclusive_occupancy = HashMap::new();
-        Map {tileset, tiles, exclusive_occupancy}
+        let non_exclusive_occupancy = HashMap::new();
+        Map {tileset, tiles, exclusive_occupancy, non_exclusive_occupancy}
     }
 
     pub fn is_passable( &self, idx: usize ) -> bool {
         let pt = self.index_to_point2d(idx);
         self.tileset.get( self.tiles[ ( pt.x as usize, pt.y as usize ) ] ).unwrap().passable
+    }
+
+    pub fn is_coord_passable( &self, c: (usize, usize) ) -> bool {
+        self.tileset.get( self.tiles[ [c.0, c.1] ] ).unwrap().passable
+    }
+
+    pub fn add_neo(&mut self, neo: NonExclusiveOccupant, pos: (i32, i32)) {
+        let mut v: Option<&mut Vec<NonExclusiveOccupant>> = None;
+
+        if let Some(vec_mut) = self.non_exclusive_occupancy.get_mut(&pos) {
+            v = Some(vec_mut);
+        } else {
+            let vec = Vec::<NonExclusiveOccupant>::new();
+            self.non_exclusive_occupancy.insert( pos, vec );
+            v = self.non_exclusive_occupancy.get_mut(&pos);
+        }
+
+        let neo_vec_mut = v.unwrap();
+
+        neo_vec_mut.push( neo );
+    }
+
+    pub fn list_neos(&self, pos: (i32, i32)) -> Option<&Vec<NonExclusiveOccupant>> {
+        self.non_exclusive_occupancy.get(&pos)
+    }
+
+    pub fn extract_neo(&mut self, pos: (i32, i32), idx: usize) -> Option<NonExclusiveOccupant> {
+        let mut i: Option<NonExclusiveOccupant> = None;
+        {
+            let mut neo_opt = self.non_exclusive_occupancy.get_mut(&pos);
+            if let Some(neo_vec) = neo_opt {
+                if neo_vec.len() > idx {
+                    i = Some( neo_vec.swap_remove(idx) );
+                }
+            }
+        }
+
+        if { let mut rm = false; if let Some(vec) = self.non_exclusive_occupancy.get(&pos) { if vec.len() == 0 { rm = true; } }; rm } {
+            self.non_exclusive_occupancy.remove(&pos);
+        }
+
+        i
     }
 }
 

@@ -2,8 +2,9 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::ops::BitOr;
 
-use ndarray::prelude::*;
+use deterministic_default_hasher::DeterministicDefaultHasher;
 
+use ndarray::Array2;
 
 use rand::{Rng, RngExt};
 use rand::rngs::ChaCha20Rng;
@@ -33,7 +34,7 @@ impl ConnCompLabeler {
     pub fn label(&self, handle: &impl CarverHandle) -> Vec<HashSet<(usize, usize)>> {
 
         // list of connected components
-        let mut ccs = HashMap::<usize, HashSet<(usize, usize)>>::new();
+        let mut ccs = HashMap::<usize, HashSet<(usize, usize)>, DeterministicDefaultHasher>::with_hasher(DeterministicDefaultHasher);
 
         // maps array labels to set indices
         let mut label_map = HashMap::<usize, usize>::new();

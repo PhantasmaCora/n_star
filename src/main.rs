@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::cmp::max;
 use std::rc::Rc;
 
@@ -9,28 +9,40 @@ use bracket_lib::prelude::*;
 
 
 pub mod actor;
-use crate::actor::{Actor, ActorKind, HealthComponent};
+use actor::{Actor, ActorKind, HealthComponent};
 
 pub mod turn;
-use crate::turn::{Command, TurnAttempt, ActionResult};
-
+use turn::{Command, TurnAttempt, ActionResult};
 
 pub mod npc_brain;
-use crate::npc_brain::StandardMonsterBrain;
+use npc_brain::StandardMonsterBrain;
+
+
+pub mod item;
+use item::InvItem;
 
 
 pub mod map;
-use crate::map::{Map, Tile};
-use crate::map::tile_render::{TileRenderContext, TileRender, TileDrawType, FixedTileRender, Wall4WayTileRender};
+use map::{Map, Tile, NonExclusiveOccupant};
+use map::tile_render::{TileRenderContext, TileRender, TileDrawType, FixedTileRender, Wall4WayTileRender};
 
 pub mod mapgen;
 use mapgen::MapGenerator;
+
+
+pub mod menu;
+use menu::{ MenuManager, OverlayKind, OverlayReturn, MenuContext };
 
 
 
 const EIGHT_WAYS: [(i32, i32); 8] = [(-1,-1), (0,-1), (1,-1), (-1,0), (1,0), (-1,1), (0,1), (1,1)];
 
 
+enum GameMode {
+    Playing,
+    OverlayMenu,
+    TitleMenu
+}
 
 struct State {
     actor_awaiting_input: Option<String>,
@@ -38,8 +50,12 @@ struct State {
     actors: HashMap<String, Actor>,
     action_order: Vec<actor::ActorRegister>,
     player_orders: Option<Command>,
+    chain_player_orders: VecDeque<Command>,
     current_map: Option<Map>,
-    gameplay_random: ChaCha20Rng
+    gameplay_random: ChaCha20Rng,
+    game_mode: GameMode,
+    menu_manager: MenuManager,
+    frame: usize
 }
 
 impl GameState for State {
@@ -47,9 +63,58 @@ impl GameState for State {
 
         self.handle_input(ctx);
 
-        self.update();
+        // clears to black. update to draw-where-dirty later???
+        ctx.cls();
 
-        self.render(ctx);
+        match self.game_mode {
+            GameMode::Playing => {
+                self.update();
+
+                self.render_world(ctx);
+                // self.render_hud(ctx); for later
+            },
+            GameMode::OverlayMenu => {
+                let mut actor_ref = None;
+                if let Some(name) = &self.actor_awaiting_input {
+                    actor_ref = self.actors.get(name);
+                }
+
+                let upd_context = MenuContext{
+                    map: self.current_map.as_ref().unwrap(),
+                    other_actors: &self.actors
+                };
+
+                let menu_result = self.menu_manager.update( actor_ref, upd_context );
+
+                if let OverlayReturn::SubmitCommands(mut cvec) = menu_result {
+                    self.chain_player_orders.append(&mut cvec);
+
+                    self.game_mode = GameMode::Playing;
+
+                    self.update();
+
+                    self.render_world(ctx);
+                    // self.render_hud(ctx); for later
+                } else {
+                    self.render_world(ctx);
+                    // self.render_hud(ctx); for later
+
+                    let draw_context = MenuContext{
+                        map: self.current_map.as_ref().unwrap(),
+                        other_actors: &self.actors
+                    };
+
+                    self.menu_manager.draw_overlay( ctx, actor_ref, draw_context );
+                }
+            },
+            GameMode::TitleMenu => {
+                // do some stuff later on
+            }
+        }
+
+        let _ = render_draw_buffer(ctx);
+
+        self.frame += 1;
     }
 }
 
@@ -66,7 +131,13 @@ impl State {
                 },
                 BEvent::KeyboardInput{key, pressed, scan_code: _} => {
                     if !pressed {continue}; // we're not interested in key released events
-                    self.handle_keypress(key);
+
+                    match self.game_mode {
+                        GameMode::Playing => { self.handle_keypress(key); },
+                        GameMode::OverlayMenu => { self.menu_manager.handle_keypress(key) },
+                        GameMode::TitleMenu => {}
+                    }
+
                 }
                 _ => {}
             }
@@ -88,6 +159,8 @@ impl State {
 
                 } else {
                     if let Some(mut up_actor) = self.actors.remove( &up_register.name ) {
+
+                        self.dechain();
 
                         let map = self.current_map.as_mut().expect("No current map!");
 
@@ -140,7 +213,9 @@ impl State {
                                     }
                                 }
                             }
-                            TurnAttempt::AwaitingInput{name: who} => { self.actor_awaiting_input = Some(who); looping = false; }
+                            TurnAttempt::AwaitingInput{name: who} => {
+                                self.actor_awaiting_input = Some(who); looping = false;
+                            }
                         }
 
                         self.actors.insert(up_actor.name.clone(), up_actor);
@@ -155,15 +230,14 @@ impl State {
         // loop broken - either it is the player's turn or the player character is dead
     }
 
-    fn render(&self, ctx: &mut BTerm) {
+    fn render_world(&self, ctx: &mut BTerm) {
+
+        let mut batch = DrawBatch::new();
 
         let size = ctx.get_char_size();
         let size = ( size.0 as i32, size.1 as i32 );
 
         let mut cam_offset = (0, 0);
-
-        // clears to black. update to draw-where-dirty later???
-        ctx.cls();
 
         // tweak later???
         let mut fov: Option<&HashSet<Point>> = None;
@@ -240,7 +314,22 @@ impl State {
                         }
 
                         if fov.is_none() || fov.unwrap().contains(&pt) {
-                            // actually we dont need to change anything
+                            // draw non-exclusive occupants if any
+                            let wrap = map.list_neos( (x, y) );
+
+                            if let Some(neo_vec) = wrap {
+                                let f = self.frame / 30;
+                                let idx = f % neo_vec.len();
+                                let occ = neo_vec.get(idx).unwrap();
+
+                                match occ {
+                                    NonExclusiveOccupant::Item(it) => {
+                                        character = it.display_ch;
+                                        fg_color = it.color.into();
+                                    }
+                                }
+                            }
+
                         } else {
                             let fade = RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0};
 
@@ -256,7 +345,7 @@ impl State {
                             }
                         }
 
-                        ctx.set( spos.0, spos.1, fg_color, bg_color, to_cp437(character) );
+                        batch.set( Point{x: spos.0, y: spos.1}, ColorPair{fg: fg_color, bg: bg_color}, to_cp437(character) );
 
                     }
                 }
@@ -270,9 +359,12 @@ impl State {
             let spos = (wpos.0 - cam_offset.0, wpos.1 - cam_offset.1);
             if Self::check_in_bounds(spos, size) && (fov.is_none() || fov.unwrap().contains( &Point{x: wpos.0, y: wpos.1} ) ) {
                 let di = a.get_draw_info(); // retrieve tuple of (color, glyph)
-                ctx.set( spos.0, spos.1, di.0, (0,0,0), to_cp437(di.1) );
+                batch.set( Point{x: spos.0, y: spos.1}, ColorPair{fg: di.0.into(), bg: (0,0,0).into()}, to_cp437(di.1) );
             }
         }
+
+        batch.target(0);
+        let _  = batch.submit(0);
     }
 
 }
@@ -282,18 +374,27 @@ impl State {
 
     fn handle_keypress(&mut self, vkc: VirtualKeyCode) {
         match vkc {
-            VirtualKeyCode::Numpad5 | VirtualKeyCode::Backslash => { self.player_orders = Some(Command::Wait(512)); },
+            VirtualKeyCode::Numpad5 | VirtualKeyCode::Backslash => { self.chain_player_orders.push_back(Command::Wait(512)); },
 
-            VirtualKeyCode::Numpad4 | VirtualKeyCode::Left => { self.player_orders = Some(Command::MoveStep{x: -1, y:0}); },
-            VirtualKeyCode::Numpad6 | VirtualKeyCode::Right => { self.player_orders = Some(Command::MoveStep{x: 1, y:0}); },
-            VirtualKeyCode::Numpad2 | VirtualKeyCode::Down => { self.player_orders = Some(Command::MoveStep{x: 0, y:1}); },
-            VirtualKeyCode::Numpad8 | VirtualKeyCode::Up => { self.player_orders = Some(Command::MoveStep{x: 0, y:-1}); },
+            VirtualKeyCode::Numpad4 | VirtualKeyCode::Left => { self.chain_player_orders.push_back(Command::MoveStep{x: -1, y:0}); },
+            VirtualKeyCode::Numpad6 | VirtualKeyCode::Right => { self.chain_player_orders.push_back(Command::MoveStep{x: 1, y:0}); },
+            VirtualKeyCode::Numpad2 | VirtualKeyCode::Down => { self.chain_player_orders.push_back(Command::MoveStep{x: 0, y:1}); },
+            VirtualKeyCode::Numpad8 | VirtualKeyCode::Up => { self.chain_player_orders.push_back(Command::MoveStep{x: 0, y:-1}); },
 
-            VirtualKeyCode::Numpad1 | VirtualKeyCode::End => { self.player_orders = Some(Command::MoveStep{x: -1, y:1}); },
-            VirtualKeyCode::Numpad7 | VirtualKeyCode::Home => { self.player_orders = Some(Command::MoveStep{x: -1, y:-1}); },
-            VirtualKeyCode::Numpad3 | VirtualKeyCode::PageUp => { self.player_orders = Some(Command::MoveStep{x: 1, y:-1}); },
-            VirtualKeyCode::Numpad9 | VirtualKeyCode::PageDown => { self.player_orders = Some(Command::MoveStep{x: 1, y:1}); },
+            VirtualKeyCode::Numpad1 | VirtualKeyCode::End => { self.chain_player_orders.push_back(Command::MoveStep{x: -1, y:1}); },
+            VirtualKeyCode::Numpad7 | VirtualKeyCode::Home => { self.chain_player_orders.push_back(Command::MoveStep{x: -1, y:-1}); },
+            VirtualKeyCode::Numpad3 | VirtualKeyCode::PageUp => { self.chain_player_orders.push_back(Command::MoveStep{x: 1, y:-1}); },
+            VirtualKeyCode::Numpad9 | VirtualKeyCode::PageDown => { self.chain_player_orders.push_back(Command::MoveStep{x: 1, y:1}); },
+
+            VirtualKeyCode::E => { self.menu_manager.try_set_mode(OverlayKind::Inventory); self.game_mode = GameMode::OverlayMenu; },
+            VirtualKeyCode::G => { self.menu_manager.try_set_mode(OverlayKind::Grab); self.game_mode = GameMode::OverlayMenu; },
             _ => {}
+        }
+    }
+
+    fn dechain(&mut self) {
+        if self.player_orders.is_none() && !self.chain_player_orders.is_empty() {
+            self.player_orders = self.chain_player_orders.pop_front();
         }
     }
 
@@ -385,89 +486,12 @@ fn main() -> BError {
             max_stability: 16,
             max_wounds: 3
         }),
+        attachments: None,
+        inventory: {let mut v = Vec::new(); v.push( InvItem{display_name: "Sword".to_string(), display_ch: '/', color: (128, 208, 255)} ); v.push( InvItem{display_name: "Shotgun".to_string(), display_ch: '}', color: (208, 128, 16)} ); v.push( InvItem{display_name: "Regen Cell".to_string(), display_ch: 'ö', color: (255, 64, 64)} ); v},
         overrides: HashMap::new(),
         bonus_breath: 0,
         fov: Some( HashSet::<Point>::new() ),
         memory: Some( HashSet::<Point>::new() )
-    };
-
-    let mut aslin = Actor {
-        is_player: false,
-        kind: kind_table["NPC"].clone(),
-        name: "Aslin".to_string(),
-        brain: Some(Box::new( StandardMonsterBrain{
-            courage: 0.5,
-            wander_distance: 9.0,
-            packmates: vec!["Lienne".to_string(), "Amerta".to_string()],
-            pack_center_distance: 12.0,
-            pack_loyalty_frac: 0.05,
-            priority: npc_brain::MonsterPriority::Wander{x: 5, y:9},
-            sleep_time: 0
-        } )),
-        position: (6,6),
-        health: Some(HealthComponent {
-            is_alive: true,
-            stability: 16,
-            wounds: 3,
-            max_stability: 16,
-            max_wounds: 3
-        }),
-        overrides: HashMap::new(),
-        bonus_breath: 0,
-        fov: Some( HashSet::<Point>::new() ),
-        memory: None
-    };
-    let mut amerta = Actor {
-        is_player: false,
-        kind: kind_table["NPC"].clone(),
-        name: "Amerta".to_string(),
-        brain: Some(Box::new( StandardMonsterBrain{
-            courage: 0.5,
-            wander_distance: 9.0,
-            packmates: vec!["Lienne".to_string(), "Aslin".to_string()],
-            pack_center_distance: 12.0,
-            pack_loyalty_frac: 0.05,
-            priority: npc_brain::MonsterPriority::Wander{x: 5, y:9},
-            sleep_time: 0
-        } )),
-        position: (6,6),
-        health: Some(HealthComponent {
-            is_alive: true,
-            stability: 16,
-            wounds: 3,
-            max_stability: 16,
-            max_wounds: 3
-        }),
-        overrides: HashMap::new(),
-        bonus_breath: 0,
-        fov: Some( HashSet::<Point>::new() ),
-        memory: None
-    };
-    let mut lienne = Actor {
-        is_player: false,
-        kind: kind_table["NPC"].clone(),
-        name: "Lienne".to_string(),
-        brain: Some(Box::new( StandardMonsterBrain{
-            courage: 0.5,
-            wander_distance: 9.0,
-            packmates: vec!["Amerta".to_string(), "Aslin".to_string()],
-            pack_center_distance: 12.0,
-            pack_loyalty_frac: 0.05,
-            priority: npc_brain::MonsterPriority::Wander{x: 5, y:9},
-            sleep_time: 0
-        } )),
-        position: (6,6),
-        health: Some(HealthComponent {
-            is_alive: true,
-            stability: 16,
-            wounds: 3,
-            max_stability: 16,
-            max_wounds: 3
-        }),
-        overrides: HashMap::new(),
-        bonus_breath: 0,
-        fov: Some( HashSet::<Point>::new() ),
-        memory: None
     };
 
     let mut gs: State = State {
@@ -477,7 +501,11 @@ fn main() -> BError {
         actors: HashMap::new(),
         action_order: vec![],
         current_map: None,
-        gameplay_random: rand::make_rng()
+        chain_player_orders: VecDeque::new(),
+        game_mode: GameMode::Playing,
+        menu_manager: MenuManager::make(),
+        gameplay_random: rand::make_rng(),
+        frame: 0
     };
 
     //gs.add_actor(npc);
@@ -527,28 +555,8 @@ fn main() -> BError {
 
     player.update_fov( &m );
 
-
-    let mut idx = 524;
-    loop {
-        let ps = m.is_passable(idx);
-        if ps {
-            break;
-        } else {
-            idx += 1;
-        }
-    }
-
-    let npc_pt = m.index_to_point2d(idx);
-    aslin.position = (npc_pt.x, npc_pt.y);
-    amerta.position = (npc_pt.x + 1, npc_pt.y);
-    lienne.position = (npc_pt.x + 2, npc_pt.y);
-
     gs.current_map = Some(m);
     gs.add_actor(player);
-
-    gs.add_actor(aslin);
-    gs.add_actor(amerta);
-    gs.add_actor(lienne);
 
     main_loop(context, gs)
 }

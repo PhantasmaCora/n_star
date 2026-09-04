@@ -7,11 +7,15 @@ use bracket_lib::prelude::{BaseMap, Algorithm2D};
 
 use crate::actor::Actor;
 use crate::map;
+use crate::map::{NonExclusiveOccupant};
+
 
 #[derive(PartialEq)]
 pub enum Command {
     Wait(i32),
-    MoveStep{x: i32, y: i32}
+    MoveStep{x: i32, y: i32},
+    DropItem(usize),
+    GrabItem{x: i32, y: i32, idx: usize}
 }
 
 #[derive(PartialEq)]
@@ -41,8 +45,10 @@ pub trait ActionResolver {
 
 pub fn map_command(cmd: Command) -> Box<dyn ActionResolver> {
     match cmd {
-        Command::Wait(breath) => { return Box::new(JustDepleteBreath{amount: breath}) },
-        Command::MoveStep{x, y} => { return Box::new(MoveStep{x,y}) }
+        Command::Wait(breath) => { return Box::new(JustDepleteBreath{amount: breath}); },
+        Command::MoveStep{x, y} => { return Box::new(MoveStep{x,y}); },
+        Command::DropItem(iidx) => { return Box::new( DropItem(iidx) ); },
+        Command::GrabItem{x,y,idx} => {return Box::new( GrabItem{x,y,idx} ); }
     }
 }
 
@@ -91,6 +97,50 @@ impl ActionResolver for MoveStep {
         return ActionResult::Failed;
     }
 }
+
+pub struct DropItem(usize);
+impl ActionResolver for DropItem {
+    fn resolve(&self, acting: &mut Actor, context: &mut ActionResolutionContext) -> ActionResult {
+        if self.0 < acting.inventory.len() {
+            let item = acting.inventory.remove(self.0);
+            context.map.add_neo( NonExclusiveOccupant::Item(item), acting.position );
+
+            return ActionResult::Succeeded(0);
+        } else {
+            return ActionResult::Failed;
+        }
+    }
+}
+
+pub struct GrabItem{x: i32, y: i32, idx: usize}
+impl ActionResolver for GrabItem {
+    fn resolve(&self, acting: &mut Actor, context: &mut ActionResolutionContext) -> ActionResult {
+        // validate
+        if self.x.abs() > 1 || self.y.abs() > 1 {
+            return ActionResult::Failed;
+        }
+
+        let gpos = (acting.position.0 + self.x, acting.position.1 + self.y);
+
+        let opt_item = context.map.extract_neo(gpos, self.idx);
+
+        if let Some(neo) = opt_item {
+            if let NonExclusiveOccupant::Item(item) = neo {
+                acting.inventory.push(item);
+                return ActionResult::Succeeded( 16 );
+            } else {
+                context.map.add_neo( neo, gpos ); // its not an item so put it back
+                return ActionResult::Failed;
+            }
+        } else {
+            // invalid index
+            return ActionResult::Failed;
+        }
+    }
+}
+
+
+
 
 // maybe this should work off an offset, like MoveStep, rather than a target declaration? would help if we get around to multitile entities
 pub struct MeleeAttack {

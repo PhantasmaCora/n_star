@@ -9,6 +9,12 @@ use bracket_lib::pathfinding::field_of_view_set;
 
 use crate::turn::{Command, TurnAttempt};
 use crate::map::Map;
+use crate::item::InvItem;
+
+
+pub mod attachment;
+use attachment::{AttachmentsComponent};
+
 
 pub struct ActorKind {
     pub name: String,
@@ -35,6 +41,8 @@ pub struct Actor {
     pub name: String,
     pub position: (i32, i32),
     pub health: Option<HealthComponent>,
+    pub attachments: Option<AttachmentsComponent>,
+    pub inventory: Vec<InvItem>,
     pub overrides: HashMap<String, ActorOverrideTrait>, // unique traits
     pub bonus_breath: i32, // added on at end of turn or at engine tick-up
     pub fov: Option<HashSet<Point>>,
@@ -104,7 +112,7 @@ impl HealthComponent {
 }
 
 
-pub struct ActionSelectionContext <'a> {
+pub struct ActionSelectionContext<'a> {
     pub player_orders: &'a mut Option::<Command>,
     pub map: &'a Map,
     pub other_actors: &'a HashMap<String, Actor>,
