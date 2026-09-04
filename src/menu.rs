@@ -6,7 +6,7 @@ use bracket_lib::prelude::*;
 use crate::actor::Actor;
 use crate::turn::Command;
 use crate::map::{Map, NonExclusiveOccupant};
-use crate::item::InvItem;
+use crate::item::{InvItem, ItemSize};
 
 
 #[derive(PartialEq, Eq)]
@@ -224,35 +224,87 @@ impl MenuManager {
         let mut batch = DrawBatch::new();
 
         batch.draw_double_box(
-            Rect{ x1: size.0 as i32 - 32, x2: size.0 as i32 - 5, y1: 1, y2: size.1 as i32 - 2 },
+            Rect{ x1: size.0 as i32 - 32, x2: size.0 as i32 - 2, y1: 1, y2: size.1 as i32 - 2 },
             ColorPair{ fg: (255, 255, 255).into(), bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0} }
         );
         batch.fill_region(
-            Rect{ x1: size.0 as i32 - 31, x2: size.0 as i32 - 5, y1: 2, y2: size.1 as i32 - 2 },
+            Rect{ x1: size.0 as i32 - 31, x2: size.0 as i32 - 2, y1: 2, y2: size.1 as i32 - 2 },
             ColorPair{ fg: (255, 255, 255).into(), bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0} },
             ' '
         );
 
+        let volume_print = format!("╡{:>5}/{:>5}v-", (actor.inv_volume.1 * 10.0).ceil() / 10.0, (actor.inv_volume.0 * 10.0).ceil() / 10.0);
+        batch.print_color( Point{ x: size.0 as i32 - 30, y: 1}, volume_print, ColorPair{bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0}, fg: (255, 255, 255).into() } );
+
+        let bulk_print = format!("{:2}/{:2}B", actor.inv_bulky.1, actor.inv_bulky.0);
+        batch.print_color( Point{ x: size.0 as i32 - 16, y: 1}, bulk_print, ColorPair{bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0}, fg: (208, 128, 16).into() } );
+
+        batch.set( Point{x: size.0 as i32 - 10, y: 1}, ColorPair{fg: (255, 255, 255).into(), bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0} }, to_cp437('╞') );
+
+        let mut can_grab_current = true;
+
         for (idx, grab) in grabs.iter().enumerate() {
             y += 1;
 
+            if y > size.1 as i32 - 5 {
+                break;
+            }
+
             let item = &grab.2;
 
-            let num_id = format!("{:03}", idx);
-            let mut num_colors = ColorPair{bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0}, fg: (255, 255, 255).into() };
+            let can_take = actor.can_add_item(item);
+
+            let num_id = format!("{:02}", idx);
+            let mut bright = (255, 255, 255);
+
+            if !can_take {
+                bright = (208, 128, 128);
+            }
+
+            let mut num_colors = ColorPair{bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0}, fg: bright.into() };
             if idx == self.selected_slot as usize {
-                num_colors = ColorPair{fg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0}, bg: (255, 255, 255).into() };
+                can_grab_current = can_take;
+
+                num_colors = ColorPair{fg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0}, bg: bright.into() };
             }
             batch.print_color( Point{ x: size.0 as i32 - 31, y}, num_id, num_colors );
 
-            batch.set( Point{x: size.0 as i32 - 27, y}, ColorPair{fg: item.color.into(), bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0} }, to_cp437( item.display_ch ) );
+            batch.set( Point{x: size.0 as i32 - 28, y}, ColorPair{fg: item.color.into(), bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0} }, to_cp437( item.display_ch ) );
 
             let mut name = item.display_name.clone();
-            if name.len() > 18 {
-                name = item.display_name[0..(size.0 as usize - 14)].to_string() + "...";
+            if name.len() > 12 {
+                name = item.display_name[0..(size.0 as usize - 9)].to_string() + "...";
             }
 
-            batch.print_color( Point{ x: size.0 as i32 - 25, y}, name, ColorPair{bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0}, fg: (255, 255, 255).into() } );
+            batch.print_color( Point{ x: size.0 as i32 - 26, y}, name, ColorPair{bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0}, fg: (255, 255, 255).into() } );
+
+            if item.can_stack > 0 {
+                let num = format!("x{:03}", item.stack);
+                batch.print_color( Point{ x: size.0 as i32 - 13, y}, num, ColorPair{bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0}, fg: (255, 255, 255).into() } );
+            }
+
+            match item.size {
+                ItemSize::Volume(v) => {
+                    let mut vprint = format!("{:>5}", v);
+
+                    if item.stack > 1 {
+                        vprint = format!("{:>5} ea", v);
+                    }
+
+                    batch.print_color( Point{ x: size.0 as i32 - 9, y}, vprint, ColorPair{bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0}, fg: (255, 255, 255).into() } );
+                },
+                ItemSize::Bulky => {
+                    batch.print_color( Point{ x: size.0 as i32 - 9, y}, "B", ColorPair{bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0}, fg: (208, 128, 16).into() } );
+                },
+                ItemSize::AttachOnly => {}
+            }
+        }
+
+        if can_grab_current {
+            batch.print_color( Point{ x: size.0 as i32 - 31, y: size.1 as i32 - 3}, "Enter", ColorPair{bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0}, fg: (255, 208, 128).into() } );
+            batch.print_color( Point{ x: size.0 as i32 - 25, y: size.1 as i32 - 3}, "to grab selected.", ColorPair{bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0}, fg: (255, 255, 255).into() } );
+        } else {
+            batch.print_color( Point{ x: size.0 as i32 - 31, y: size.1 as i32 - 3}, "Not enough room!", ColorPair{bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0}, fg: (240, 208, 208).into() } );
         }
 
         let _ = batch.submit(5000);
@@ -286,6 +338,17 @@ impl MenuManager {
             ' '
         );
 
+
+
+        let volume_print = format!("╡Inventory » {:>5}/{:>5}v-", (actor.inv_volume.1 * 10.0).ceil() / 10.0, (actor.inv_volume.0 * 10.0).ceil() / 10.0);
+        batch.print_color( Point{ x: 8, y: 1}, volume_print, ColorPair{bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0}, fg: (255, 255, 255).into() } );
+
+        let bulk_print = format!("{:2}/{:2}B", actor.inv_bulky.1, actor.inv_bulky.0);
+        batch.print_color( Point{ x: 34, y: 1}, bulk_print, ColorPair{bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0}, fg: (208, 128, 16).into() } );
+
+        batch.set( Point{x: 40, y: 1}, ColorPair{fg: (255, 255, 255).into(), bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0} }, to_cp437('╞') );
+
+
         for (idx, item) in inv.iter().enumerate() {
             y += 1;
 
@@ -299,11 +362,32 @@ impl MenuManager {
             batch.set( Point{x: 10, y}, ColorPair{fg: item.color.into(), bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0} }, to_cp437( item.display_ch ) );
 
             let mut name = item.display_name.clone();
-            if name.len() > size.0 as usize - 16 {
-                name = item.display_name[0..(size.0 as usize - 20)].to_string() + "...";
+            if name.len() > 16 {
+                name = item.display_name[0..(size.0 as usize - 12)].to_string() + "...";
             }
 
             batch.print_color( Point{ x:12, y}, name, ColorPair{bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0}, fg: (255, 255, 255).into() } );
+
+            if item.can_stack > 0 {
+                let num = format!("x{:03}", item.stack);
+                batch.print_color( Point{ x: 28, y}, num, ColorPair{bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0}, fg: (255, 255, 255).into() } );
+            }
+
+            match item.size {
+                ItemSize::Volume(v) => {
+                    let mut vprint = format!("{:>5}", v);
+
+                    if item.stack > 1 {
+                        vprint = format!("{:>5} ea", v);
+                    }
+
+                    batch.print_color( Point{ x: 33, y}, vprint, ColorPair{bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0}, fg: (255, 255, 255).into() } );
+                },
+                ItemSize::Bulky => {
+                    batch.print_color( Point{ x: 39, y}, "B", ColorPair{bg: RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0}, fg: (208, 128, 16).into() } );
+                },
+                ItemSize::AttachOnly => {}
+            }
         }
 
         batch.target(0);

@@ -19,7 +19,7 @@ use npc_brain::StandardMonsterBrain;
 
 
 pub mod item;
-use item::InvItem;
+use item::{InvItem, ItemSize};
 
 
 pub mod map;
@@ -487,12 +487,25 @@ fn main() -> BError {
             max_wounds: 3
         }),
         attachments: None,
-        inventory: {let mut v = Vec::new(); v.push( InvItem{display_name: "Sword".to_string(), display_ch: '/', color: (128, 208, 255)} ); v.push( InvItem{display_name: "Shotgun".to_string(), display_ch: '}', color: (208, 128, 16)} ); v.push( InvItem{display_name: "Regen Cell".to_string(), display_ch: 'ö', color: (255, 64, 64)} ); v},
+        inventory: Vec::new(),
+        inv_volume: (32.0, 0.0),
+        inv_bulky: (3, 0),
         overrides: HashMap::new(),
         bonus_breath: 0,
         fov: Some( HashSet::<Point>::new() ),
         memory: Some( HashSet::<Point>::new() )
     };
+
+    player.add_item(
+        InvItem{display_name: "Sword".to_string(), display_ch: '/', color: (128, 208, 255), can_stack: -1, stack: 1, size: ItemSize::Bulky}
+    );
+    player.add_item(
+        InvItem{display_name: "Shotgun".to_string(), display_ch: '}', color: (208, 128, 16), can_stack: -1, stack: 1, size: ItemSize::Bulky}
+    );
+    player.add_item(
+        InvItem{display_name: "Regen Cell".to_string(), display_ch: 'ö', color: (255, 64, 64), can_stack: 2, stack: 3, size: ItemSize::Volume(2.1) }
+    );
+
 
     let mut gs: State = State {
         player_orders: None,

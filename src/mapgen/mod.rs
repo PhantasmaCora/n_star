@@ -12,7 +12,7 @@ use bracket_lib::geometry::{Point, Rect};
 
 use crate::map::{Tile, Map, NonExclusiveOccupant};
 
-use crate::item::InvItem;
+use crate::item::{InvItem, ItemSize};
 
 
 mod lw_mapalgo;
@@ -117,10 +117,34 @@ impl MapGenerator {
         let proto = InvItem {
             display_name: "Strange Rock".to_string(),
             display_ch: 'º',
-            color: (128, 208, 208)
+            color: (128, 208, 208),
+            can_stack: 1,
+            stack: 1,
+            size: ItemSize::Volume(1.5)
         };
 
         for _i in 0..64 {
+            let mut rx = rng.random_range(1..self.w-1);
+            let mut ry = rng.random_range(1..self.h-1);
+
+            while !map.is_coord_passable( (rx, ry) ) {
+                rx = rng.random_range(1..self.w-1);
+                ry = rng.random_range(1..self.h-1);
+            }
+
+            map.add_neo( NonExclusiveOccupant::Item( proto.clone() ), (rx as i32, ry as i32) );
+        }
+
+        let proto = InvItem {
+            display_name: "Canister".to_string(),
+            display_ch: 'Ü',
+            color: (64, 64, 64),
+            can_stack: 0,
+            stack: 1,
+            size: ItemSize::Bulky
+        };
+
+        for _i in 0..16 {
             let mut rx = rng.random_range(1..self.w-1);
             let mut ry = rng.random_range(1..self.h-1);
 
