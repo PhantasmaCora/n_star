@@ -102,7 +102,7 @@ pub struct DropItem(usize);
 impl ActionResolver for DropItem {
     fn resolve(&self, acting: &mut Actor, context: &mut ActionResolutionContext) -> ActionResult {
         if self.0 < acting.inventory.len() {
-            let wrap = acting.remove_item( self.0 );
+            let wrap = acting.inventory.remove_item( self.0 );
             if let Some(item) = wrap {
                 context.map.add_neo( NonExclusiveOccupant::Item(item), acting.position );
                 return ActionResult::Succeeded(0);
@@ -126,7 +126,7 @@ impl ActionResolver for GrabItem {
 
         if let Some(neo) = opt_item {
             if let NonExclusiveOccupant::Item(item) = neo {
-                let res = acting.add_item(item);
+                let res = acting.inventory.add_item(item);
                 if let Err(it) = res {
                     context.map.add_neo( NonExclusiveOccupant::Item(it), gpos ); // not enough space, put it back
                     return ActionResult::Failed;

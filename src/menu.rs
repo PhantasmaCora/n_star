@@ -310,10 +310,12 @@ impl MenuManager {
             ' '
         );
 
-        let volume_print = format!("╡{:>5}/{:>5}v-", (actor.inv_volume.1 * 10.0).ceil() / 10.0, (actor.inv_volume.0 * 10.0).ceil() / 10.0);
+        let inv = &actor.inventory;
+
+        let volume_print = format!("╡{:>5}/{:>5}v-", (inv.inv_volume.1 * 10.0).ceil() / 10.0, (inv.inv_volume.0 * 10.0).ceil() / 10.0);
         batch.print_color( Point{ x: size.0 as i32 - 30, y: 1}, volume_print, ColorPair{bg: inf_deep, fg: WHITE.into() } );
 
-        let bulk_print = format!("{:2}/{:2}B", actor.inv_bulky.1, actor.inv_bulky.0);
+        let bulk_print = format!("{:2}/{:2}B", inv.inv_bulky.1, inv.inv_bulky.0);
         batch.print_color( Point{ x: size.0 as i32 - 16, y: 1}, bulk_print, ColorPair{bg: inf_deep, fg: inf_bulk } );
 
         batch.set( Point{x: size.0 as i32 - 10, y: 1}, ColorPair{fg: WHITE.into(), bg: inf_deep }, to_cp437('╞') );
@@ -329,7 +331,7 @@ impl MenuManager {
 
             let item = &grab.2;
 
-            let can_take = actor.can_add_item(item);
+            let can_take = inv.can_add_item(item);
 
             let num_id = format!("{:02}", idx);
             let mut bright = RGBA::from(WHITE);
@@ -397,7 +399,7 @@ impl MenuManager {
 
         let size = ctx.get_char_size();
 
-        let item = &actor.inventory.get(self.selected_slot as usize).expect("incorrect item index...");
+        let item = &actor.inventory.inventory.get(self.selected_slot as usize).expect("incorrect item index...");
 
         batch.draw_double_box(
             Rect{ x1: 10, x2: size.0 as i32 - 10, y1: 5, y2: size.1 as i32 - 2 },
@@ -472,11 +474,11 @@ impl MenuManager {
                 match &item.lick_result {
                     LickResponse::FlavorText(s, ln) => {
                         txt.push( s.clone() );
-                        bw = *ln as i32 + 3;
+                        bw = (*ln) as i32 + 3;
                     },
                     LickResponse::LongText(v, ln) => {
                         txt.append( &mut v.iter().map( |s| s.clone() ).collect() );
-                        bw = *ln as i32 + 3;
+                        bw = (*ln) as i32 + 3;
                     },
                     LickResponse::PoisonRefusal => {
                         txt.push( "#[inf_invl]It is obviously poisonous!".to_string() );
@@ -554,16 +556,16 @@ impl MenuManager {
 
 
 
-        let volume_print = format!("╡Inventory » {:>5}/{:>5}v-", (actor.inv_volume.1 * 10.0).ceil() / 10.0, (actor.inv_volume.0 * 10.0).ceil() / 10.0);
+        let volume_print = format!("╡Inventory » {:>5}/{:>5}v-", (inv.inv_volume.1 * 10.0).ceil() / 10.0, (inv.inv_volume.0 * 10.0).ceil() / 10.0);
         batch.print_color( Point{ x: 8, y: 1}, volume_print, ColorPair{bg: inf_deep, fg: WHITE.into() } );
 
-        let bulk_print = format!("{:2}/{:2}B", actor.inv_bulky.1, actor.inv_bulky.0);
+        let bulk_print = format!("{:2}/{:2}B", inv.inv_bulky.1, inv.inv_bulky.0);
         batch.print_color( Point{ x: 34, y: 1}, bulk_print, ColorPair{bg: inf_deep, fg: inf_bulk } );
 
         batch.set( Point{x: 40, y: 1}, ColorPair{fg: WHITE.into(), bg: inf_deep }, to_cp437('╞') );
 
 
-        for (idx, item) in inv.iter().enumerate() {
+        for (idx, item) in inv.inventory.iter().enumerate() {
             y += 1;
 
             let num_id = format!("{:03}", idx);
