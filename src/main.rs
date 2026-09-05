@@ -17,10 +17,8 @@ use turn::{Command, TurnAttempt, ActionResult};
 pub mod npc_brain;
 use npc_brain::StandardMonsterBrain;
 
-
 pub mod item;
-use item::{InvItem, ItemSize};
-
+use item::{InvItem, ItemSize, LickResponse};
 
 pub mod map;
 use map::{Map, Tile, NonExclusiveOccupant};
@@ -55,7 +53,8 @@ struct State {
     gameplay_random: ChaCha20Rng,
     game_mode: GameMode,
     menu_manager: MenuManager,
-    frame: usize
+    frame: usize,
+    beat: usize
 }
 
 impl GameState for State {
@@ -413,6 +412,8 @@ impl State {
                 ar.breath += 1024; // "one turn" by default is 1024 units of time
             }
         }
+
+        self.beat += 1;
     }
 
     fn add_actor( &mut self, mut a: actor::Actor ) {
@@ -445,6 +446,13 @@ fn main() -> BError {
     .with_font( "cp437_12x12.png", 12, 12 )
     .with_simple_console(80, 50, "cp437_12x12.png")
     .build()?;
+
+    bracket_lib::color::register_palette_color("inf_gold", (255, 208, 128) ); // interface gold
+    bracket_lib::color::register_palette_color("inf_deep", RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0} ); // interface deep
+    bracket_lib::color::register_palette_color("inf_grey", HSV{h: 0.0, s: 0.0, v: 0.8} ); // interface grey
+    bracket_lib::color::register_palette_color("inf_bulk", (208, 128, 16) ); // interface bulk
+    bracket_lib::color::register_palette_color("inf_invl", (208, 128, 128) ); // interface invalid
+    bracket_lib::color::register_palette_color("inf_good", (145, 204, 163) ); // interface good
 
     {
         let mut input = INPUT.lock();
@@ -497,13 +505,13 @@ fn main() -> BError {
     };
 
     player.add_item(
-        InvItem{display_name: "Sword".to_string(), display_ch: '/', color: (128, 208, 255), can_stack: -1, stack: 1, size: ItemSize::Bulky}
+        InvItem{display_name: "Sword".to_string(), display_ch: '/', color: (128, 208, 255), can_stack: -1, stack: 1, size: ItemSize::Bulky, flavor_text: "A handy, if basic, melee weapon.".to_string(), lick_result: LickResponse::FlavorText("#[]Steel, slight hint of silicon to it.".to_string(), 36) }
     );
     player.add_item(
-        InvItem{display_name: "Shotgun".to_string(), display_ch: '}', color: (208, 128, 16), can_stack: -1, stack: 1, size: ItemSize::Bulky}
+        InvItem{display_name: "Shotgun".to_string(), display_ch: '}', color: (208, 128, 16), can_stack: -1, stack: 1, size: ItemSize::Bulky, flavor_text: "Old reliable. A well-crafted weapon.".to_string(), lick_result: LickResponse::LongText( vec!["#[]You check the safety, then lick the side...".to_string(), "#[]Tantalizing notes of grease and soot.".to_string(), "#[]Truly a trusted sister, this.".to_string()], 44 ) }
     );
     player.add_item(
-        InvItem{display_name: "Regen Cell".to_string(), display_ch: 'ö', color: (255, 64, 64), can_stack: 2, stack: 3, size: ItemSize::Volume(2.1) }
+        InvItem{display_name: "Regen Cell".to_string(), display_ch: 'ö', color: (255, 64, 64), can_stack: 2, stack: 3, size: ItemSize::Volume(2.1), flavor_text: "A standard healing item, administered orally. Pulsates slightly with lively essence.".to_string(), lick_result: LickResponse::FlavorText("#[inf_good]Tingles pleasantly on your tongue.#[]".to_string(), 34)  }
     );
 
 
@@ -518,7 +526,8 @@ fn main() -> BError {
         game_mode: GameMode::Playing,
         menu_manager: MenuManager::make(),
         gameplay_random: rand::make_rng(),
-        frame: 0
+        frame: 0,
+        beat: 0
     };
 
     //gs.add_actor(npc);

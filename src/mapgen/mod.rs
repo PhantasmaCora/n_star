@@ -12,7 +12,7 @@ use bracket_lib::geometry::{Point, Rect};
 
 use crate::map::{Tile, Map, NonExclusiveOccupant};
 
-use crate::item::{InvItem, ItemSize};
+use crate::item::{InvItem, ItemSize, LickResponse};
 
 
 mod lw_mapalgo;
@@ -120,7 +120,9 @@ impl MapGenerator {
             color: (128, 208, 208),
             can_stack: 1,
             stack: 1,
-            size: ItemSize::Volume(1.5)
+            size: ItemSize::Volume(1.5),
+            flavor_text: "Small, you'd almost call it a pebble. Not a type of stone you've seen before...".to_string(),
+            lick_result: LickResponse::NonBioRefusal
         };
 
         for _i in 0..64 {
@@ -138,10 +140,12 @@ impl MapGenerator {
         let proto = InvItem {
             display_name: "Canister".to_string(),
             display_ch: 'Ü',
-            color: (64, 64, 64),
+            color: (128, 128, 128),
             can_stack: 0,
             stack: 1,
-            size: ItemSize::Bulky
+            size: ItemSize::Bulky,
+            flavor_text: "Some manner of storage vesssel. It's not clear what's inside or how to get it open.".to_string(),
+            lick_result: LickResponse::LongText(vec!["#[]Alloy, notes of tungsten.".to_string(), "#[]Can probably store some harsh stuff in here...".to_string()], 45)
         };
 
         for _i in 0..16 {
