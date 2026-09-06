@@ -30,7 +30,7 @@ pub mod mapgen;
 use mapgen::MapGenerator;
 
 pub mod menu;
-use menu::{ MenuManager, OverlayKind, OverlayReturn, MenuContext };
+use menu::{ OverlayMenuManager, OverlayManagerReturn, MenuContext };
 
 
 
@@ -54,7 +54,7 @@ struct State {
     current_map: Option<Map>,
     gameplay_random: ChaCha20Rng,
     game_mode: GameMode,
-    menu_manager: MenuManager,
+    menu_manager: OverlayMenuManager,
     frame: usize,
     beat: usize
 }
@@ -75,10 +75,14 @@ impl GameState for State {
                 // self.render_hud(ctx); for later
             },
             GameMode::OverlayMenu => {
-                let mut actor_ref = None;
+                let mut actor_opt = None;
                 if let Some(name) = &self.actor_awaiting_input {
-                    actor_ref = self.actors.get(name);
+                    actor_opt = self.actors.get(name);
+                } else {
+                    panic![]
                 }
+
+                let mut actor_ref = actor_opt.unwrap();
 
                 let upd_context = MenuContext{
                     map: self.current_map.as_ref().unwrap(),
@@ -87,7 +91,7 @@ impl GameState for State {
 
                 let menu_result = self.menu_manager.update( actor_ref, upd_context );
 
-                if let OverlayReturn::SubmitCommands(mut cvec) = menu_result {
+                if let OverlayManagerReturn::SubmitCommands(mut cvec) = menu_result {
                     self.chain_player_orders.append(&mut cvec);
 
                     self.game_mode = GameMode::Playing;
@@ -387,9 +391,9 @@ impl State {
             VirtualKeyCode::Numpad3 | VirtualKeyCode::PageUp => { self.chain_player_orders.push_back(Command::MoveStep{x: 1, y:-1}); },
             VirtualKeyCode::Numpad9 | VirtualKeyCode::PageDown => { self.chain_player_orders.push_back(Command::MoveStep{x: 1, y:1}); },
 
-            VirtualKeyCode::E => { self.menu_manager.try_set_mode(OverlayKind::Inventory); self.game_mode = GameMode::OverlayMenu; },
-            VirtualKeyCode::A => { self.menu_manager.try_set_mode(OverlayKind::Attachments); self.game_mode = GameMode::OverlayMenu; },
-            VirtualKeyCode::G => { self.menu_manager.try_set_mode(OverlayKind::Grab); self.game_mode = GameMode::OverlayMenu; },
+            VirtualKeyCode::E => { self.menu_manager.set_mode( Box::new( menu::InventoryMenu::new() ) ); self.game_mode = GameMode::OverlayMenu; },
+            VirtualKeyCode::A => { self.menu_manager.set_mode( Box::new( menu::AttachmentOverviewMenu::new() ) ); self.game_mode = GameMode::OverlayMenu; },
+            VirtualKeyCode::G => { self.menu_manager.set_mode( Box::new( menu::GrabMenu::new() ) ); self.game_mode = GameMode::OverlayMenu; },
             _ => {}
         }
     }
@@ -544,7 +548,7 @@ fn main() -> BError {
         current_map: None,
         chain_player_orders: VecDeque::new(),
         game_mode: GameMode::Playing,
-        menu_manager: MenuManager::make(),
+        menu_manager: OverlayMenuManager::make(),
         gameplay_random: rand::make_rng(),
         frame: 0,
         beat: 0
