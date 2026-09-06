@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::collections::{VecDeque, HashMap};
 
 
@@ -8,7 +9,7 @@ use crate::actor::Actor;
 use crate::turn::Command;
 use crate::map::{Map, NonExclusiveOccupant};
 use crate::item::{InvItem, ItemSize, LickResponse};
-use crate::{Attachment, SlotContent};
+use crate::actor::attachment::{Attachment, SlotBorrow, AttachmentFeatureDescriptor};
 
 
 #[derive(PartialEq, Eq)]
@@ -162,8 +163,34 @@ impl MenuManager {
     pub fn update(&mut self, actor: Option<&Actor>, context: MenuContext) -> OverlayReturn {
         match &self.active_kind {
             OverlayKind::Attachments => {
+                let actor = actor.unwrap();
+
+                let attachments_opt = actor.attachments.as_ref();
+
+                if let Some(attachments) = attachments_opt {
+
+                    let mut stack = Vec::<SlotBorrow>::new();
+                    stack.push( SlotBorrow::Attached( &attachments.root ) );
+
+                    let mut n_att = 0;
+
+                    while !stack.is_empty() {
+                        let current = stack.pop().unwrap();
+
+                        if let SlotBorrow::Attached(att) = current {
+                            for sidx in (0..att.slots.len() ).rev() {
+                                stack.push( att.slots[sidx].get_ref() );
+                            }
+                        }
+
+                        n_att += 1;
+                    }
+
+                    // clamp selected_slot to the relevant number of slots
+                    self.clamp_selection( n_att );
+                }
+
                 return OverlayReturn::NoAction;
-                // clamp selected_slot to the relevant number of slots
             },
             OverlayKind::Grab => {
                 let grabs = self.compile_grabables( actor.unwrap(), &context );
@@ -530,6 +557,7 @@ impl MenuManager {
         let size = ctx.get_char_size();
 
         let inf_deep = palette_color(&"inf_deep").unwrap();
+        let inf_invl = palette_color(&"inf_invl").unwrap();
         let white: RGBA = WHITE.into();
 
         let att_comp = actor.attachments.as_ref().unwrap();
@@ -546,45 +574,77 @@ impl MenuManager {
                           ' '
         );
 
-        let mut idx = -1;
-        let mut stack = Vec::<(String, Option<&Attachment>, i32)>::new();
+        let title = "╡Attachments╞".to_string();
+        batch.print_color( Point{ x: 8, y: 1}, title, ColorPair{bg: inf_deep, fg: WHITE.into() } );
 
-        let rootstr = format!( "#[]○ {}", att_comp.root.kind.display_name.clone() );
+        let mut lines = Vec::<(String, String, i32, Vec<AttachmentFeatureDescriptor>)>::new();
 
-        stack.push( (rootstr, Some(&att_comp.root), 6) );
+        let mut stack = Vec::<(String, SlotBorrow, i32)>::new();
+
+        let rootstr = "Core".to_string();
+
+        stack.push( (rootstr, SlotBorrow::Attached( &att_comp.root ), 6) );
 
         while !stack.is_empty() {
-            idx += 1;
-            let mut selected = false;
-            if idx == self.selected_slot {
-                selected = true;
-            }
-
             let current = stack.pop().unwrap();
 
-            if let Some(att) = current.1 {
-                for (sidx, s) in att.slots.iter().enumerate().rev() {
+            if let SlotBorrow::Attached(att) = current.1 {
+                for sidx in (0..att.slots.len() ).rev() {
                     let label = att.kind.provides_slots[sidx].1.clone();
-                    let mut occupant = "".to_string();
-                    let mut the_att = None;
-                    match s {
-                        SlotContent::Attached(att) => {
-                            the_att = Some(att);
-                            occupant = att.kind.display_name.clone();
-                        },
-                        SlotContent::Empty => {
-                            occupant = "#[inf_grey](None)#[]".to_string();
-                        },
-                        SlotContent::Bracing => {
-                            occupant = "#[inf_grey](Bracing)#[]".to_string();
-                        }
-                    }
-                    let line = format!("#[]└ {}: {}", label, occupant);
-                    stack.push( (line, the_att, current.2 + 1) );
+                    stack.push( (label, att.slots[sidx].get_ref(), current.2 + 1) );
                 }
             }
 
-            batch.printer( Point{ x: current.2, y: idx * 2 + 2 }, current.0, TextAlign::Left, Some(inf_deep) );
+            let mut occupant = "".to_string();
+            let mut features = Vec::new();
+
+            match current.1 {
+                SlotBorrow::Attached(att) => {
+                    occupant = att.kind.display_name.clone();
+                    features = att.kind.get_descriptors();
+                },
+                SlotBorrow::Empty => {
+                    occupant = "#[inf_dgry](None)#[]".to_string();
+                },
+                SlotBorrow::Bracing => {
+                    occupant = "#[inf_dgry](Bracing)#[]".to_string();
+                }
+            }
+
+            lines.push( ( current.0, occupant, current.2, features ) );
+        }
+
+        for (idx, l) in lines.iter().enumerate() {
+
+            let mut start_colors = ColorPair{bg: inf_deep, fg: white };
+            if idx == self.selected_slot as usize {
+                start_colors = ColorPair{fg: inf_deep, bg: white };
+            }
+
+            let mut start = format!("└ {}:", l.0);
+            if idx == 0 {
+                start = format!("☼ {}:", l.0);
+            }
+
+            let offs = l.2 + start.len() as i32 - 1;
+
+            batch.print_color( Point{ x: l.2, y: idx as i32 + 2}, start, start_colors );
+
+            let name = format!("#[]{}", l.1 );
+
+            batch.printer( Point{ x: offs, y: idx as i32 + 2}, name, TextAlign::Left, Some(inf_deep) );
+
+            let mut x = size.0 as i32 - 7;
+
+            for afd in l.3.iter().rev() {
+                match afd {
+                    AttachmentFeatureDescriptor::Integrated => {
+                        batch.set( Point{x, y: idx as i32 + 2}, ColorPair{fg: inf_deep, bg: inf_invl}, to_cp437('I') );
+                        x -= 1;
+                    }
+                }
+
+            }
         }
 
         let _ = batch.submit(5000);

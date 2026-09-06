@@ -452,7 +452,8 @@ fn main() -> BError {
 
     bracket_lib::color::register_palette_color("inf_gold", (255, 208, 128) ); // interface gold
     bracket_lib::color::register_palette_color("inf_deep", RGBA{r: 0.02, g: 0.1, b: 0.14, a: 1.0} ); // interface deep
-    bracket_lib::color::register_palette_color("inf_grey", HSV{h: 0.0, s: 0.0, v: 0.8} ); // interface grey
+    bracket_lib::color::register_palette_color("inf_grey", HSV{h: 0.0, s: 0.0, v: 0.7} ); // interface grey
+    bracket_lib::color::register_palette_color("inf_dgry", HSV{h: 0.5, s: 0.05, v: 0.45} ); // interface dark gray
     bracket_lib::color::register_palette_color("inf_bulk", (208, 128, 16) ); // interface bulk
     bracket_lib::color::register_palette_color("inf_invl", (208, 128, 128) ); // interface invalid
     bracket_lib::color::register_palette_color("inf_good", (145, 204, 163) ); // interface good

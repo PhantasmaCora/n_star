@@ -1,8 +1,9 @@
+use std::borrow::Borrow;
 use std::collections::{HashMap};
 
 use std::rc::Rc;
 
-
+use crate::Actor;
 use crate::InvItem;
 use crate::dataread::AttachmentTypeData;
 
@@ -12,6 +13,24 @@ pub enum SlotContent {
     Attached(Attachment),
     Bracing
 }
+
+pub enum SlotBorrow<'a> {
+    Empty,
+    Attached(&'a Attachment),
+    Bracing
+}
+
+impl SlotContent {
+    pub fn get_ref<'a>(&'a self) -> SlotBorrow<'a> {
+        match self {
+            SlotContent::Empty => {SlotBorrow::Empty},
+            SlotContent::Attached(att) => {SlotBorrow::Attached(&att)},
+            SlotContent::Bracing => {SlotBorrow::Bracing}
+        }
+    }
+
+}
+
 
 
 pub struct AttachmentType {
@@ -37,6 +56,18 @@ impl AttachmentType {
             provides_slots: dat.provides_slots,
             item_proto: dat.item_proto
         }
+    }
+
+    pub fn get_descriptors(&self) -> Vec<AttachmentFeatureDescriptor> {
+        let mut out = Vec::new();
+
+        if self.integrated {
+            out.push( AttachmentFeatureDescriptor::Integrated );
+        }
+
+        // apply descriptors from features here too
+
+        out
     }
 }
 
@@ -90,7 +121,22 @@ impl AttachmentsComponent {
 }
 
 
-pub trait AttachmentFeature{}
+pub enum AttachmentFeatureDescriptor {
+    Integrated
+}
+
+
+
+pub trait AttachmentFeature{
+    fn validate(&self, actor: &mut Actor);
+
+    fn apply(&self, actor: &mut Actor);
+
+    fn remove(&self, actor: &mut Actor);
+
+    fn get_descriptor(&self) -> AttachmentFeatureDescriptor;
+}
+
 
 
 

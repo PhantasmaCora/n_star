@@ -52,7 +52,7 @@ impl AssetData {
 pub fn get_data(path: PathBuf) -> Result<AssetData, figment::Error> {
     let mut fig = Figment::new();
 
-    let mut rdvec = vec![ read_dir(path).expect("invalid path") ];
+    let mut rdvec = vec![ read_dir(path).expect("/res folder missing!") ];
 
     while !rdvec.is_empty() {
         let rditer = rdvec.pop().unwrap();
@@ -60,17 +60,22 @@ pub fn get_data(path: PathBuf) -> Result<AssetData, figment::Error> {
         for res_file in rditer {
 
             if let Ok(entry) = res_file {
-                if entry.file_type().expect("invalid file").is_file() && entry.file_name().to_string_lossy().ends_with(".toml") {
-                    fig = fig.admerge( Toml::file( entry.path() ) );
-                } else if entry.file_type().expect("invalid file").is_dir() {
-                    rdvec.push( read_dir( entry.path() ).expect("invalid recursive path") );
+                let result_ft = entry.file_type();
+
+                if let Ok(ft) = result_ft {
+                    if ft.is_file() && entry.file_name().to_string_lossy().ends_with(".toml") {
+                        fig = fig.admerge( Toml::file( entry.path() ) );
+                    } else if ft.is_dir() {
+                        let result_rd = read_dir( entry.path() );
+
+                        if let Ok(rd) = result_rd {
+                            rdvec.push( rd );
+                        }
+                    }
                 }
             }
         }
-
     }
-
-
 
     return fig.extract();
 
