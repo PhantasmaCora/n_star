@@ -1,6 +1,6 @@
 
 
-use serde::{Serialize, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer};
 
 use textwrap::wrap;
 

@@ -6,7 +6,7 @@ use std::fs::*;
 
 
 use serde::{Deserialize};
-use figment::{Figment, providers::{Format, Toml, Serialized}};
+use figment::{Figment, providers::{Format, Toml}};
 
 
 mod attachmenttype;

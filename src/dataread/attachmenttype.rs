@@ -1,7 +1,6 @@
 
 
-use serde::{Serialize, Deserialize};
-use figment::{Figment, providers::{Format, Toml, Serialized}};
+use serde::Deserialize;
 
 use crate::item::InvItem;
 

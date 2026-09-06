@@ -8,7 +8,7 @@ use crate::actor::Actor;
 use crate::turn::Command;
 use crate::map::{Map, NonExclusiveOccupant};
 use crate::item::{InvItem, ItemSize, LickResponse};
-use crate::{Attachment, AttachmentsComponent, AttachmentType, SlotContent};
+use crate::{Attachment, SlotContent};
 
 
 #[derive(PartialEq, Eq)]

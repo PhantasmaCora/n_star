@@ -13,7 +13,7 @@ use crate::item::Inventory;
 
 
 pub mod attachment;
-use attachment::{AttachmentsComponent, AttachmentType, Attachment};
+use attachment::AttachmentsComponent;
 
 
 pub struct ActorKind {

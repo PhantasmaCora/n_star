@@ -522,13 +522,13 @@ fn main() -> BError {
         memory: Some( HashSet::<Point>::new() )
     };
 
-    player.inventory.add_item(
+    let _ = player.inventory.add_item(
         InvItem{display_name: "Sword".to_string(), display_ch: '/', color: (128, 208, 255), can_stack: -1, stack: 1, size: ItemSize::Bulky, flavor_text: "A handy, if basic, melee weapon.".to_string(), lick_result: LickResponse::FlavorText("#[]Steel, slight hint of silicon to it.".to_string(), 36) }
     );
-    player.inventory.add_item(
+    let _ = player.inventory.add_item(
         InvItem{display_name: "Shotgun".to_string(), display_ch: '}', color: (208, 128, 16), can_stack: -1, stack: 1, size: ItemSize::Bulky, flavor_text: "Old reliable. A well-crafted weapon.".to_string(), lick_result: LickResponse::LongText( vec!["#[]You check the safety, then lick the side...".to_string(), "#[]Tantalizing notes of grease and soot.".to_string(), "#[]Truly a trusted sister, this.".to_string()], 44 ) }
     );
-    player.inventory.add_item(
+    let _ = player.inventory.add_item(
         InvItem{display_name: "Regen Cell".to_string(), display_ch: 'ö', color: (255, 64, 64), can_stack: 2, stack: 3, size: ItemSize::Volume(2.1), flavor_text: "A standard healing item, administered orally. Pulsates slightly with lively essence.".to_string(), lick_result: LickResponse::FlavorText("#[inf_good]Tingles pleasantly on your tongue.#[]".to_string(), 34)  }
     );
 
