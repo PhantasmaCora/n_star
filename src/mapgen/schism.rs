@@ -1,12 +1,9 @@
 use std::f32::consts::PI;
 
-use ndarray::prelude::*;
 
-use rand::{Rng, RngExt};
+use rand::RngExt;
 use rand::rngs::ChaCha20Rng;
-use rand::distr::Uniform;
 
-use bracket_lib::geometry::Rect;
 
 use crate::mapgen::CarverHandle;
 

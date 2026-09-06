@@ -10,12 +10,12 @@ use bracket_lib::prelude::*;
 
 pub mod actor;
 use actor::{Actor, ActorKind, HealthComponent};
+use actor::attachment::{Attachment, AttachmentsComponent, AttachmentType, SlotContent};
 
 pub mod turn;
 use turn::{Command, TurnAttempt, ActionResult};
 
 pub mod npc_brain;
-use npc_brain::StandardMonsterBrain;
 
 pub mod item;
 use item::{Inventory, InvItem, ItemSize, LickResponse};
@@ -26,7 +26,6 @@ use map::tile_render::{TileRenderContext, TileRender, TileDrawType, FixedTileRen
 
 pub mod mapgen;
 use mapgen::MapGenerator;
-
 
 pub mod menu;
 use menu::{ MenuManager, OverlayKind, OverlayReturn, MenuContext };
@@ -45,6 +44,7 @@ enum GameMode {
 struct State {
     actor_awaiting_input: Option<String>,
     kind_table: HashMap<String, Rc<ActorKind>>,
+    attach_table: HashMap<String, Rc<AttachmentType>>,
     actors: HashMap<String, Actor>,
     action_order: Vec<actor::ActorRegister>,
     player_orders: Option<Command>,
@@ -386,6 +386,7 @@ impl State {
             VirtualKeyCode::Numpad9 | VirtualKeyCode::PageDown => { self.chain_player_orders.push_back(Command::MoveStep{x: 1, y:1}); },
 
             VirtualKeyCode::E => { self.menu_manager.try_set_mode(OverlayKind::Inventory); self.game_mode = GameMode::OverlayMenu; },
+            VirtualKeyCode::A => { self.menu_manager.try_set_mode(OverlayKind::Attachments); self.game_mode = GameMode::OverlayMenu; },
             VirtualKeyCode::G => { self.menu_manager.try_set_mode(OverlayKind::Grab); self.game_mode = GameMode::OverlayMenu; },
             _ => {}
         }
@@ -468,18 +469,24 @@ fn main() -> BError {
         sight_range: 32
     };
 
-    let npc_kind = actor::ActorKind {
+    /*let npc_kind = actor::ActorKind {
         name: "NPC".to_string(),
         class: 'c',
         color: (255, 128, 64),
         breath_interest: 32,
         max_stability: 16,
         sight_range: 24
-    };
+    };*/
 
     let mut kind_table = HashMap::<String, Rc<ActorKind>>::new();
     kind_table.insert(playerpawn_kind.name.clone(), Rc::new(playerpawn_kind));
-    kind_table.insert(npc_kind.name.clone(), Rc::new(npc_kind));
+    //kind_table.insert(npc_kind.name.clone(), Rc::new(npc_kind));
+
+    let attach_table = actor::attachment::make_test_att_types();
+
+    let attachments = actor::attachment::make_test_att_comp(&attach_table);
+
+
 
     let mut player = Actor {
         is_player: true,
@@ -494,7 +501,7 @@ fn main() -> BError {
             max_stability: 16,
             max_wounds: 3
         }),
-        attachments: None,
+        attachments: Some(attachments),
         inventory: Inventory{
             inventory: Vec::new(),
             inv_volume: (32.0, 0.0),
@@ -521,6 +528,7 @@ fn main() -> BError {
         player_orders: None,
         actor_awaiting_input: None,
         kind_table,
+        attach_table,
         actors: HashMap::new(),
         action_order: vec![],
         current_map: None,

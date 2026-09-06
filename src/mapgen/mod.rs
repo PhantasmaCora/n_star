@@ -1,14 +1,13 @@
 use std::borrow::Borrow;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 
 use ndarray::prelude::*;
 
 use deterministic_default_hasher::DeterministicDefaultHasher;
 
-use rand::{Rng, RngExt, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use rand::rngs::ChaCha20Rng;
 
-use bracket_lib::geometry::{Point, Rect};
 
 use crate::map::{Tile, Map, NonExclusiveOccupant};
 
@@ -22,7 +21,7 @@ mod carver_handle;
 use carver_handle::WideChainCarverHandle;
 
 mod cellauto;
-use cellauto::{SimpleBooleanCellAuto, SOFT_CAVES, JAGGED_CAVES};
+use cellauto::JAGGED_CAVES;
 
 mod schism;
 use schism::SchismCarver;
@@ -101,7 +100,7 @@ impl MapGenerator {
 
         }*/
 
-        let mut uarr = Array2::<usize>::default( (self.w, self.h) );
+        let uarr = Array2::<usize>::default( (self.w, self.h) );
         let tsm = TileSetMapper{};
 
         let uarr = tsm.map_tile(barr.borrow());

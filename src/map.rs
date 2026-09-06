@@ -1,8 +1,6 @@
 
 use std::collections::HashMap;
-use std::marker::Copy;
 
-use serde::{Serialize, Deserialize};
 
 use ndarray::{Array2};
 
@@ -79,7 +77,7 @@ impl Map {
     pub fn extract_neo(&mut self, pos: (i32, i32), idx: usize) -> Option<NonExclusiveOccupant> {
         let mut i: Option<NonExclusiveOccupant> = None;
         {
-            let mut neo_opt = self.non_exclusive_occupancy.get_mut(&pos);
+            let neo_opt = self.non_exclusive_occupancy.get_mut(&pos);
             if let Some(neo_vec) = neo_opt {
                 if neo_vec.len() > idx {
                     i = Some( neo_vec.swap_remove(idx) );

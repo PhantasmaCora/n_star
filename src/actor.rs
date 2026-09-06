@@ -9,11 +9,11 @@ use bracket_lib::pathfinding::field_of_view_set;
 
 use crate::turn::{Command, TurnAttempt};
 use crate::map::Map;
-use crate::item::{InvItem, ItemSize, Inventory};
+use crate::item::Inventory;
 
 
 pub mod attachment;
-use attachment::{AttachmentsComponent};
+use attachment::{AttachmentsComponent, AttachmentType, Attachment};
 
 
 pub struct ActorKind {

@@ -1,12 +1,12 @@
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 use std::ops::BitOr;
 
 use deterministic_default_hasher::DeterministicDefaultHasher;
 
 use ndarray::Array2;
 
-use rand::{Rng, RngExt};
+use rand::RngExt;
 use rand::rngs::ChaCha20Rng;
 
 use bracket_lib::pathfinding::a_star_search;
@@ -140,7 +140,7 @@ pub struct ConnCompTunneler {
 
 impl ConnCompTunneler {
     pub fn cull_small(&self, handle: &mut impl CarverHandle, min_size: usize) {
-        let mut ccs = self.labeler.label(handle);
+        let ccs = self.labeler.label(handle);
 
         for cc in ccs.iter() {
             if cc.len() < min_size {

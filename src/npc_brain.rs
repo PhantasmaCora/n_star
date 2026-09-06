@@ -1,7 +1,7 @@
 use rand::RngExt;
 
 use bracket_lib::prelude::{BaseMap, Algorithm2D};
-use bracket_lib::pathfinding::{a_star_search, NavigationPath};
+use bracket_lib::pathfinding::a_star_search;
 
 use crate::actor::{Actor, ActionSelectionContext, Brain};
 use crate::turn::{TurnAttempt, Command};

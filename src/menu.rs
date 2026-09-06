@@ -1,7 +1,6 @@
 use std::collections::{VecDeque, HashMap};
 
 
-use textwrap::wrap;
 
 use bracket_lib::prelude::*;
 
@@ -9,11 +8,13 @@ use crate::actor::Actor;
 use crate::turn::Command;
 use crate::map::{Map, NonExclusiveOccupant};
 use crate::item::{InvItem, ItemSize, LickResponse};
+use crate::{Attachment, AttachmentsComponent, AttachmentType, SlotContent};
 
 
 #[derive(PartialEq, Eq)]
 pub enum OverlayKind {
     Closed,
+    Attachments,
     Inventory,
     Grab,
     InspectItem(InspectSubView)
@@ -160,10 +161,10 @@ impl MenuManager {
 
     pub fn update(&mut self, actor: Option<&Actor>, context: MenuContext) -> OverlayReturn {
         match &self.active_kind {
-            /*OverlayKind::Attachments => {
+            OverlayKind::Attachments => {
                 return OverlayReturn::NoAction;
                 // clamp selected_slot to the relevant number of slots
-            },*/
+            },
             OverlayKind::Grab => {
                 let grabs = self.compile_grabables( actor.unwrap(), &context );
 
@@ -229,11 +230,11 @@ impl MenuManager {
 
     pub fn draw_overlay(&self, ctx: &mut BTerm, actor: Option<&Actor>, context: MenuContext) {
         match &self.active_kind {
-            /*OverlayKind::Attachments => {
+            OverlayKind::Attachments => {
                 if let Some(act) = actor {
                     self.draw_attachments(ctx, act);
                 }
-            },*/
+            },
             OverlayKind::InspectItem(sv) => {
                 if let Some(act) = actor {
                     self.draw_inspect_item(ctx, act, sv);
@@ -526,9 +527,67 @@ impl MenuManager {
             return;
         }
 
-        let mut y = 0;
-        let mut x_indent = 0;
-        let mut x = 0;
+        let size = ctx.get_char_size();
+
+        let inf_deep = palette_color(&"inf_deep").unwrap();
+        let white: RGBA = WHITE.into();
+
+        let att_comp = actor.attachments.as_ref().unwrap();
+
+        let mut batch = DrawBatch::new();
+
+        batch.draw_double_box(
+            Rect{ x1: 5, x2: size.0 as i32 - 5, y1: 1, y2: size.1 as i32 - 2 },
+            ColorPair{ fg: WHITE.into(), bg: inf_deep }
+        );
+        batch.fill_region(
+            Rect{ x1: 6, x2: size.0 as i32 - 5, y1: 2, y2: size.1 as i32 - 2 },
+            ColorPair{ fg: WHITE.into(), bg: inf_deep },
+                          ' '
+        );
+
+        let mut idx = -1;
+        let mut stack = Vec::<(String, Option<&Attachment>, i32)>::new();
+
+        let rootstr = format!( "#[]○ {}", att_comp.root.kind.display_name.clone() );
+
+        stack.push( (rootstr, Some(&att_comp.root), 6) );
+
+        while !stack.is_empty() {
+            idx += 1;
+            let mut selected = false;
+            if idx == self.selected_slot {
+                selected = true;
+            }
+
+            let current = stack.pop().unwrap();
+
+            if let Some(att) = current.1 {
+                for (sidx, s) in att.slots.iter().enumerate().rev() {
+                    let label = att.kind.provides_slots[sidx].1.clone();
+                    let mut occupant = "".to_string();
+                    let mut the_att = None;
+                    match s {
+                        SlotContent::Attached(att) => {
+                            the_att = Some(att);
+                            occupant = att.kind.display_name.clone();
+                        },
+                        SlotContent::Empty => {
+                            occupant = "#[inf_grey](None)#[]".to_string();
+                        },
+                        SlotContent::Bracing => {
+                            occupant = "#[inf_grey](Bracing)#[]".to_string();
+                        }
+                    }
+                    let line = format!("#[]└ {}: {}", label, occupant);
+                    stack.push( (line, the_att, current.2 + 1) );
+                }
+            }
+
+            batch.printer( Point{ x: current.2, y: idx * 2 + 2 }, current.0, TextAlign::Left, Some(inf_deep) );
+        }
+
+        let _ = batch.submit(5000);
     }
 
 
