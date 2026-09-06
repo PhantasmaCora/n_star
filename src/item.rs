@@ -1,16 +1,18 @@
 
 
+use serde::{Serialize, Deserialize, Deserializer};
+
 use textwrap::wrap;
 
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize)]
 pub enum ItemSize {
     Volume(f32),
     Bulky,
     AttachOnly
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize)]
 pub enum LickResponse {
     FlavorText(String, usize),
     LongText(Vec<String>, usize),
@@ -20,14 +22,21 @@ pub enum LickResponse {
 }
 
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct InvItem {
     pub display_name: String,
     pub display_ch: char,
     pub flavor_text: String,
     pub color: (u8, u8, u8),
+
+    #[serde(deserialize_with = "map_can_stack")]
     pub can_stack: i32, // unique identifier for this item's stackability type
+    // needs post-processing after deserializing to convert 1 to (unique positive value)
+
+    #[serde(skip_deserializing)]
+    #[serde(default="one")]
     pub stack: usize,
+
     pub size: ItemSize,
     pub lick_result: LickResponse
 }
@@ -138,6 +147,18 @@ impl Inventory {
         Some(it)
     }
 
+}
 
 
+fn one() -> usize {1}
+
+fn map_can_stack<'de, D>(deserializer: D) -> Result<i32, D::Error>
+where D: Deserializer<'de> {
+    let can = bool::deserialize(deserializer)?;
+
+    if can {
+        return Ok(1);
+    } else {
+        return Ok(-1);
+    }
 }

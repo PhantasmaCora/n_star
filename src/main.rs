@@ -7,6 +7,8 @@ use rand::rngs::ChaCha20Rng;
 
 use bracket_lib::prelude::*;
 
+pub mod dataread;
+use dataread::get_data;
 
 pub mod actor;
 use actor::{Actor, ActorKind, HealthComponent};
@@ -478,11 +480,18 @@ fn main() -> BError {
         sight_range: 24
     };*/
 
+
+
+    let mut asset_data = get_data("./res".into()).unwrap();
+
+    //print!("{:?}\n", asset_data);
+
+    let attach_table = asset_data.get_attachment_table();
+
     let mut kind_table = HashMap::<String, Rc<ActorKind>>::new();
     kind_table.insert(playerpawn_kind.name.clone(), Rc::new(playerpawn_kind));
     //kind_table.insert(npc_kind.name.clone(), Rc::new(npc_kind));
 
-    let attach_table = actor::attachment::make_test_att_types();
 
     let attachments = actor::attachment::make_test_att_comp(&attach_table);
 

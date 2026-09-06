@@ -4,6 +4,7 @@ use std::rc::Rc;
 
 
 use crate::InvItem;
+use crate::dataread::AttachmentTypeData;
 
 
 pub enum SlotContent {
@@ -23,6 +24,24 @@ pub struct AttachmentType {
     pub provides_slots: Vec<(String, String)>,
     pub item_proto: Option<InvItem>
 }
+
+impl AttachmentType {
+    pub fn from_data(dat: AttachmentTypeData) -> Self {
+        Self {
+            integrated: dat.integrated,
+            name: dat.name,
+            display_name: dat.display_name,
+            holder_kind: dat.holder_kind,
+            weight: dat.weight,
+            features: vec![],
+            provides_slots: dat.provides_slots,
+            item_proto: dat.item_proto
+        }
+    }
+}
+
+
+
 
 pub struct Attachment {
     pub kind: Rc<AttachmentType>,
@@ -134,7 +153,7 @@ pub fn make_test_att_types() -> HashMap<String, Rc<AttachmentType>> {
 }
 
 pub fn make_test_att_comp(table: &HashMap<String, Rc<AttachmentType>>) -> AttachmentsComponent {
-    let opt = Attachment{kind: table.get("Optics2").unwrap().clone(), slots: vec![]};
+    let opt = Attachment{kind: table.get("Optics").unwrap().clone(), slots: vec![]};
     let larm = Attachment{kind: table.get("Arm2").unwrap().clone(), slots: vec![SlotContent::Empty]};
     let rarm = Attachment{kind: table.get("Arm2").unwrap().clone(), slots: vec![SlotContent::Empty]};
     let lleg = Attachment{kind: table.get("Leg2").unwrap().clone(), slots: vec![]};

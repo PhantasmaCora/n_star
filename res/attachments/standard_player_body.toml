@@ -1,0 +1,200 @@
+
+# 3rd Instar - Standard
+[[attachment]]
+integrated=true
+name="Body1"
+display_name="Varzei-31 Shell"
+holder_kind=""
+weight=64.0
+provides_slots=[
+    ["Arm1", "Left Arm"],
+    ["Arm1", "Right Arm"],
+    ["Leg1", "Left Leg"],
+    ["Leg1", "Right Leg"],
+    ["Optics", "Optics"]
+]
+
+[attachment.item_proto]
+display_name="Varzei-31 Shell"
+display_ch="¥"
+flavor_text="The most common model of core component for 3rd Instar bodies."
+color=[255,240,240]
+can_stack=false
+size="Bulky"
+lick_result={"FlavorText"=["A familiar flavor. Little odd given this one's inactive though.", 63]}
+
+[[attachment]]
+integrated=true
+name="Arm1"
+display_name="Sprif-15 Arm typ-A"
+holder_kind="Arm1"
+weight=18.0
+provides_slots=[
+    ["Weapon1", "Weapon"]
+]
+
+[attachment.item_proto]
+display_name="Sprif-15 Arm typ-A"
+display_ch="⌐"
+flavor_text="The most common model of grasper module for 3rd Instar bodies."
+color=[255,240,240]
+can_stack=false
+size="Bulky"
+lick_result={"FlavorText"=["A familiar flavor. Little odd given this one's inactive though.", 63]}
+
+[[attachment]]
+integrated=true
+name="Leg1"
+display_name="Zwinn-15 Leg typ-A"
+holder_kind="Leg1"
+weight=20.0
+provides_slots=[]
+
+[attachment.item_proto]
+display_name="Zwinn-15 Leg typ-A"
+display_ch="τ"
+flavor_text="The most common model of locomotor module for 3rd Instar bodies."
+color=[255,240,240]
+can_stack=false
+size="Bulky"
+lick_result={"FlavorText"=["A familiar flavor. Little odd given this one's inactive though.", 63]}
+
+# 4th Instar - standard
+[[attachment]]
+integrated=true
+name="Shell2"
+display_name="Keram-127 Shell"
+holder_kind=""
+weight=96.0
+provides_slots=[
+    ["Arm2", "Left Arm"],
+    ["Arm2", "Right Arm"],
+    ["Leg2", "Left Leg"],
+    ["Leg2", "Right Leg"],
+    ["Optics", "Optics"]
+]
+
+[attachment.item_proto]
+display_name="Keram-127 Shell"
+display_ch="¥"
+flavor_text="A decently balanced model of core component for 4th Instar bodies."
+color=[255,255,255]
+can_stack=false
+size="Bulky"
+lick_result={"FlavorText"=["A familiar flavor. Little odd given this one's inactive though.", 63]}
+
+[[attachment]]
+integrated=true
+name="Arm2"
+display_name="Anika-63 Arm typ-A"
+holder_kind="Arm2"
+weight=24.0
+provides_slots=[
+    ["Weapon2", "Weapon"]
+]
+
+[attachment.item_proto]
+display_name="Anika-63 Arm typ-A"
+display_ch="⌐"
+flavor_text="The most common model of grasper module for 4th Instar bodies."
+color=[255,255,255]
+can_stack=false
+size="Bulky"
+lick_result={"FlavorText"=["A familiar flavor. Little odd given this one's inactive though.", 63]}
+
+[[attachment]]
+integrated=true
+name="Leg2"
+display_name="Ciha-63 Leg typ-A"
+holder_kind="Leg2"
+weight=32.0
+provides_slots=[]
+
+[attachment.item_proto]
+display_name="Ciha-63 Leg typ-A"
+display_ch="τ"
+flavor_text="The most common model of locomotor module for 4th Instar bodies."
+color=[255,255,255]
+can_stack=false
+size="Bulky"
+lick_result={"FlavorText"=["A familiar flavor. Little odd given this one's inactive though.", 63]}
+
+
+# 5th Instar - standard
+[[attachment]]
+integrated=true
+name="Body3"
+display_name="Tueks-511 Shell"
+holder_kind=""
+weight=112.0
+provides_slots=[
+    ["Arm3", "Left Arm"],
+    ["Arm3", "Right Arm"],
+    ["Leg3", "Left Leg"],
+    ["Leg3", "Right Leg"],
+    ["Optics", "Optics"]
+]
+
+[attachment.item_proto]
+display_name="Tueks-511 Shell"
+display_ch="¥"
+flavor_text="A heavily armored model of core component for 5th Instar bodies. Has extra hardpoints."
+color=[240,255,255]
+can_stack=false
+size="Bulky"
+lick_result={"FlavorText"=["Standard armor alloy, you remember the taste well.", 63]}
+
+[[attachment]]
+integrated=true
+name="Arm3"
+display_name="Suko-255 Arm typ-D"
+holder_kind="Arm3"
+weight=48.0
+provides_slots=[
+    ["Weapon3", "Weapon"]
+]
+
+[attachment.item_proto]
+display_name="Suko-255 Arm typ-D"
+display_ch="⌐"
+flavor_text="A tough, durable grasper module for 5th Instar bodies."
+color=[240,255,255]
+can_stack=false
+size="Bulky"
+lick_result={"FlavorText"=["Standard armor alloy, you remember the taste well.", 63]}
+
+[[attachment]]
+integrated=true
+name="Leg3"
+display_name="Rotanh-255 Leg typ-C"
+holder_kind="Leg3"
+weight=56.0
+provides_slots=[]
+
+[attachment.item_proto]
+display_name="Rotanh-255 Leg typ-C"
+display_ch="τ"
+flavor_text="A stalwart locomotor module for 5th Instar bodies."
+color=[240,255,255]
+can_stack=false
+size="Bulky"
+lick_result={"FlavorText"=["Standard armor alloy, you remember the taste well.", 63]}
+
+
+# Optics - standard
+[[attachment]]
+integrated=true
+name="Optics"
+display_name="Zilak-C Optics"
+holder_kind="Optics"
+weight=1.0
+provides_slots=[]
+
+[attachment.item_proto]
+display_name="Zilak-C Optics"
+display_ch="°"
+flavor_text="A plain optical module."
+color=[240,255,255]
+can_stack=false
+size={"Volume"=1.6}
+lick_result="NonBioRefusal"
