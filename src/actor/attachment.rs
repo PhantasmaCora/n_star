@@ -1,13 +1,22 @@
 use std::borrow::Borrow;
 use std::collections::{HashMap};
-
+use std::fmt::Debug;
 use std::rc::Rc;
+
+use serde::Deserialize;
+
+use bracket_lib::prelude::*;
 
 use crate::Actor;
 use crate::InvItem;
-use crate::dataread::AttachmentTypeData;
 
 
+pub mod feat_attack;
+
+
+
+
+#[derive(Clone, Debug)]
 pub enum SlotContent {
     Empty,
     Attached(Attachment),
@@ -32,11 +41,12 @@ impl SlotContent {
 }
 
 
-
+#[derive(Debug, Deserialize)]
 pub struct AttachmentType {
     pub integrated: bool,
     pub name: String,
     pub display_name: String,
+    pub describe_types: (String, String),
     pub holder_kind: String,
     pub weight: f32,
     pub features: Vec<Box<dyn AttachmentFeature>>,
@@ -45,27 +55,49 @@ pub struct AttachmentType {
 }
 
 impl AttachmentType {
-    pub fn from_data(dat: AttachmentTypeData) -> Self {
-        Self {
-            integrated: dat.integrated,
-            name: dat.name,
-            display_name: dat.display_name,
-            holder_kind: dat.holder_kind,
-            weight: dat.weight,
-            features: vec![],
-            provides_slots: dat.provides_slots,
-            item_proto: dat.item_proto
-        }
-    }
-
     pub fn get_descriptors(&self) -> Vec<AttachmentFeatureDescriptor> {
-        let mut out = Vec::new();
+        let mut out = vec![];
 
         if self.integrated {
-            out.push( AttachmentFeatureDescriptor::Integrated );
+            out.push( AttachmentFeatureDescriptor::SingleChar{
+                ch: 'I',
+                fg: palette_color(&"inf_deep").unwrap(),
+                bg: palette_color(&"inf_invl").unwrap()
+            } );
         }
 
         // apply descriptors from features here too
+
+        out
+    }
+
+    pub fn get_text_describe(&self) -> Vec<String> {
+        let mut baseline = format!("{}, fits {} slot.", self.describe_types.0, self.describe_types.1);
+
+        if self.describe_types.1 == "" || self.describe_types.0 == self.describe_types.1 {
+            baseline = format!("{} slot.", self.describe_types.0);
+        }
+
+        let mut out = vec![baseline];
+
+        if self.provides_slots.len() > 0 {
+            let mut line = "Hardpoints: [".to_string();
+
+            let mut i = self.provides_slots.iter();
+            let mut v = i.next();
+            while !v.is_none() {
+                line += &v.unwrap().1;
+                v = i.next();
+                if !v.is_none() {
+                    line += ", "
+                }
+            }
+            out.push(line);
+        }
+
+        for feat in self.features.iter() {
+            out.append(&mut feat.get_text());
+        }
 
         out
     }
@@ -73,11 +105,23 @@ impl AttachmentType {
 
 
 
-
+#[derive(Clone, Debug)]
 pub struct Attachment {
     pub kind: Rc<AttachmentType>,
     pub slots: Vec<SlotContent>
 }
+
+impl Attachment {
+    pub fn as_item(self) -> InvItem {
+        let mut clon = self.kind.item_proto.clone().unwrap();
+        clon.attaches_as = Some(self);
+
+        // apply any other distinguishing traits
+
+        clon
+    }
+}
+
 
 pub struct AttachmentsComponent {
     pub root: Attachment
@@ -122,81 +166,24 @@ impl AttachmentsComponent {
 
 
 pub enum AttachmentFeatureDescriptor {
-    Integrated
+    SingleChar{ch: char, fg: RGBA, bg: RGBA},
+    PrinterString(String, i32)
 }
 
-
-
-pub trait AttachmentFeature{
-    fn validate(&self, actor: &mut Actor);
+#[typetag::serde(tag = "type")]
+pub trait AttachmentFeature: Debug {
+    fn validate(&self, actor: &mut Actor) -> bool;
 
     fn apply(&self, actor: &mut Actor);
 
     fn remove(&self, actor: &mut Actor);
 
     fn get_descriptor(&self) -> AttachmentFeatureDescriptor;
+
+    fn get_text(&self) -> Vec<String>;
 }
 
 
-
-
-
-
-pub fn make_test_att_types() -> HashMap<String, Rc<AttachmentType>> {
-    let mut v = vec![];
-
-    v.push(AttachmentType{
-        integrated: true,
-        name: "Shell2".to_string(),
-        display_name: "RUNKO-127 Shell".to_string(),
-        holder_kind: "".to_string(),
-        weight: 96.0,
-        features: vec![],
-        provides_slots: vec![ ("Arm2".to_string(), "Left Arm".to_string()), ("Arm2".to_string(), "Right Arm".to_string()), ("Leg2".to_string(), "Left Leg".to_string()), ("Leg2".to_string(), "Right Leg".to_string()), ("Optics2".to_string(), "Optics".to_string()) ],
-        item_proto: None
-    });
-
-    v.push(AttachmentType{
-        integrated: true,
-        name: "Arm2".to_string(),
-        display_name: "KSVS-63 Arm typ-D".to_string(),
-        holder_kind: "Arm2".to_string(),
-        weight: 24.0,
-        features: vec![],
-        provides_slots: vec![ ("Weapon2".to_string(), "Weapon".to_string()) ],
-        item_proto: None
-    });
-
-    v.push(AttachmentType{
-        integrated: true,
-        name: "Leg2".to_string(),
-        display_name: "JLK-63 Leg typ-C".to_string(),
-        holder_kind: "Leg2".to_string(),
-        weight: 24.0,
-        features: vec![],
-        provides_slots: vec![],
-        item_proto: None
-    });
-
-    v.push(AttachmentType{
-        integrated: true,
-        name: "Optics2".to_string(),
-        display_name: "SILMA Optics typ-A".to_string(),
-        holder_kind: "Optics".to_string(),
-        weight: 64.0,
-        features: vec![],
-        provides_slots: vec![],
-        item_proto: None
-    });
-
-    let mut out = HashMap::new();
-
-    for kind in v.drain(..) {
-        out.insert( kind.name.clone(), Rc::new(kind) );
-    }
-
-    out
-}
 
 pub fn make_test_att_comp(table: &HashMap<String, Rc<AttachmentType>>) -> AttachmentsComponent {
     let opt = Attachment{kind: table.get("Optics").unwrap().clone(), slots: vec![]};

@@ -120,6 +120,7 @@ impl MapGenerator {
             can_stack: 1,
             stack: 1,
             size: ItemSize::Volume(1.5),
+            attaches_as: None,
             flavor_text: "Small, you'd almost call it a pebble. Not a type of stone you've seen before...".to_string(),
             lick_result: LickResponse::NonBioRefusal
         };
@@ -143,6 +144,7 @@ impl MapGenerator {
             can_stack: 0,
             stack: 1,
             size: ItemSize::Bulky,
+            attaches_as: None,
             flavor_text: "Some manner of storage vesssel. It's not clear what's inside or how to get it open.".to_string(),
             lick_result: LickResponse::LongText(vec!["#[]Alloy, notes of tungsten.".to_string(), "#[]Can probably store some harsh stuff in here...".to_string()], 45)
         };

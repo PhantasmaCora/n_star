@@ -8,15 +8,11 @@ use std::fs::*;
 use serde::{Deserialize};
 use figment::{Figment, providers::{Format, Toml}};
 
-
-mod attachmenttype;
-pub use attachmenttype::AttachmentTypeData;
-
 use crate::item::{InvItem};
 use crate::AttachmentType;
 
 
-fn no_attachments() -> Vec<AttachmentTypeData> {
+fn no_attachments() -> Vec<AttachmentType> {
     vec![]
 }
 
@@ -24,11 +20,11 @@ fn no_items() -> Vec<InvItem> {
     vec![]
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 pub struct AssetData {
 
     #[serde(default="no_attachments")]
-    attachment: Vec<AttachmentTypeData>,
+    attachment: Vec<AttachmentType>,
 
     #[serde(default="no_items")]
     item: Vec<InvItem>
@@ -38,8 +34,7 @@ impl AssetData {
     pub fn get_attachment_table(&mut self) -> HashMap<String, Rc<AttachmentType>> {
         let mut out = HashMap::new();
 
-        for dat in self.attachment.drain(..) {
-            let att = AttachmentType::from_data(dat);
+        for att in self.attachment.drain(..) {
             out.insert( att.name.clone(), Rc::new(att) );
         }
 

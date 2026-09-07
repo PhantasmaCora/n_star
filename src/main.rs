@@ -461,6 +461,7 @@ fn main() -> BError {
     bracket_lib::color::register_palette_color("inf_bulk", (208, 128, 16) ); // interface bulk
     bracket_lib::color::register_palette_color("inf_invl", (208, 128, 128) ); // interface invalid
     bracket_lib::color::register_palette_color("inf_good", (145, 204, 163) ); // interface good
+    bracket_lib::color::register_palette_color("inf_attc", HSV{h: 0.05, s: 0.75, v: 0.78} ); // interface attachment
 
     {
         let mut input = INPUT.lock();
@@ -527,14 +528,47 @@ fn main() -> BError {
         memory: Some( HashSet::<Point>::new() )
     };
 
+    /*let _ = player.inventory.add_item(
+        InvItem{display_name: "Shotgun".to_string(), display_ch: '}', color: (208, 128, 16), can_stack: -1, stack: 1, size: ItemSize::Bulky, flavor_text: "Old reliable. A well-crafted weapon.".to_string(), attaches_as: None,  lick_result: LickResponse::LongText( vec!["#[]You check the safety, then lick the side...".to_string(), "#[]Tantalizing notes of grease and soot.".to_string(), "#[]Truly a trusted sister, this.".to_string()], 44 ) }
+    );*/
+
+    let shotgun = Attachment{
+        kind: attach_table.get("1_Shotgun2").unwrap().clone(),
+        slots: vec![]
+    };
+
+    let _ = player.inventory.add_item( shotgun.as_item() );
+
+    let sword = Attachment{
+        kind: attach_table.get("1_Sword1").unwrap().clone(),
+        slots: vec![]
+    };
+
+    let _ = player.inventory.add_item( sword.as_item() );
+
+    /*let leg = Attachment{
+        kind: attach_table.get("Leg3").unwrap().clone(),
+        slots: vec![]
+    };
+
+    let _ = player.inventory.add_item( leg.as_item() );*/
+
+    let ps1 = Attachment{
+        kind: attach_table.get("0_Pistol2").unwrap().clone(),
+        slots: vec![]
+    };
+
+    let _ = player.inventory.add_item( ps1.as_item() );
+
+    let bg = Attachment{
+        kind: attach_table.get("1_BeamGun1").unwrap().clone(),
+        slots: vec![]
+    };
+
+    let _ = player.inventory.add_item( bg.as_item() );
+
     let _ = player.inventory.add_item(
-        InvItem{display_name: "Sword".to_string(), display_ch: '/', color: (128, 208, 255), can_stack: -1, stack: 1, size: ItemSize::Bulky, flavor_text: "A handy, if basic, melee weapon.".to_string(), lick_result: LickResponse::FlavorText("#[]Steel, slight hint of silicon to it.".to_string(), 36) }
-    );
-    let _ = player.inventory.add_item(
-        InvItem{display_name: "Shotgun".to_string(), display_ch: '}', color: (208, 128, 16), can_stack: -1, stack: 1, size: ItemSize::Bulky, flavor_text: "Old reliable. A well-crafted weapon.".to_string(), lick_result: LickResponse::LongText( vec!["#[]You check the safety, then lick the side...".to_string(), "#[]Tantalizing notes of grease and soot.".to_string(), "#[]Truly a trusted sister, this.".to_string()], 44 ) }
-    );
-    let _ = player.inventory.add_item(
-        InvItem{display_name: "Regen Cell".to_string(), display_ch: 'ö', color: (255, 64, 64), can_stack: 2, stack: 3, size: ItemSize::Volume(2.1), flavor_text: "A standard healing item, administered orally. Pulsates slightly with lively essence.".to_string(), lick_result: LickResponse::FlavorText("#[inf_good]Tingles pleasantly on your tongue.#[]".to_string(), 34)  }
+        InvItem{display_name: "Regen Cell".to_string(), display_ch: 'ö', color: (255, 64, 64), can_stack: 2, stack: 3, size: ItemSize::Volume(2.1), flavor_text: "A standard healing item, administered orally. Pulsates slightly with lively essence.".to_string(), attaches_as: None, lick_result: LickResponse::FlavorText("#[inf_good]Tingles pleasantly on your tongue.#[]".to_string(), 34)  }
     );
 
 

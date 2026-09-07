@@ -146,8 +146,8 @@ impl OverlayMenu for GrabMenu {
             batch.set( Point{x: size.0 as i32 - 28, y}, ColorPair{fg: item.color.into(), bg: inf_deep }, to_cp437( item.display_ch ) );
 
             let mut name = item.display_name.clone();
-            if name.len() > 12 {
-                name = item.display_name[0..(size.0 as usize - 9)].to_string() + "...";
+            if name.len() > 15 {
+                name = item.display_name[0..12].to_string() + "...";
             }
 
             batch.print_color( Point{ x: size.0 as i32 - 26, y}, name, ColorPair{bg: inf_deep, fg: white } );

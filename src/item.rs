@@ -1,8 +1,10 @@
-
+use std::rc::Rc;
 
 use serde::{Deserialize, Deserializer};
 
 use textwrap::wrap;
+
+use crate::actor::attachment::Attachment;
 
 
 #[derive(Clone, Debug, Deserialize)]
@@ -37,6 +39,10 @@ pub struct InvItem {
     #[serde(default="one")]
     pub stack: usize,
 
+    #[serde(skip_deserializing)]
+    #[serde(default)]
+    pub attaches_as: Option<Attachment>,
+
     pub size: ItemSize,
     pub lick_result: LickResponse
 }
@@ -50,7 +56,13 @@ impl InvItem {
 
         // resolve flavor text context here ???
 
-        out.append( &mut wrap(txt, width).iter().map(|cow| cow.to_string() ).collect() );
+        out.append( &mut wrap(txt, width).iter().map(|cow| "#[]".to_string() + cow ).collect() );
+
+        if let Some(att) = &self.attaches_as {
+            out.push("".to_string());
+            out.push("#[inf_attc]Attaches as:#[]".to_string());
+            out.append( &mut att.kind.get_text_describe().into_iter().map( |line| "#[] ".to_string() + &line ).collect() );
+        }
 
         out
     }

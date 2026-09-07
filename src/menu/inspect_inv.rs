@@ -137,10 +137,10 @@ impl OverlayMenu for InspectInvItemMenu {
 
         match item.size {
             ItemSize::Volume(v) => {
-                let mut vprint = format!("{:>5}", v);
+                let mut vprint = format!("#[]{:>5}", v);
 
                 if item.stack > 1 {
-                    vprint = format!("{:>5} ea", v);
+                    vprint = format!("#[]{:>5} ea", v);
                 }
 
                 brief_line += &vprint;
@@ -167,7 +167,7 @@ impl OverlayMenu for InspectInvItemMenu {
 
         for l in lines {
             y += 1;
-            batch.print_color( Point{ x: 12, y}, l,  ColorPair{bg: inf_deep, fg: white } );
+            batch.printer( Point{ x: 12, y}, l, TextAlign::Left, Some(inf_deep) );
         }
 
         batch.printer( Point{ x: 11, y: size.1 as i32 - 3}, "#[inf_gold]d#[] to drop. #[inf_gold]l#[] to lick.", TextAlign::Left, Some(inf_deep));

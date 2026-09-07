@@ -168,9 +168,13 @@ impl OverlayMenu for AttachmentOverviewMenu {
 
             for afd in l.3.iter().rev() {
                 match afd {
-                    AttachmentFeatureDescriptor::Integrated => {
-                        batch.set( Point{x, y: idx as i32 + 2}, ColorPair{fg: inf_deep, bg: inf_invl}, to_cp437('I') );
+                    AttachmentFeatureDescriptor::SingleChar{ch, fg, bg} => {
+                        batch.set( Point{x, y: idx as i32 + 2}, ColorPair{fg: *fg, bg: *bg}, to_cp437(*ch) );
                         x -= 1;
+                    },
+                    AttachmentFeatureDescriptor::PrinterString(text, width) => {
+                        batch.printer( Point{x, y: idx as i32 + 2}, text, TextAlign::Right, Some(inf_deep) );
+                        x -= width;
                     }
                 }
 

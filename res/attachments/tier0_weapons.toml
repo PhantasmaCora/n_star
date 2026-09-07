@@ -1,0 +1,88 @@
+
+[[attachment]]
+integrated=false
+name="0_Pistol1"
+display_name="Pgn_75"
+describe_types=["Pistol", "Weapon"]
+holder_kind="Weapon"
+weight=9.0
+features=[
+    {type="ProvidesRangedAttack", burst=1, "spread"=0.0, "pen_rating"=1, "damage_die"="1d3"}
+]
+provides_slots=[]
+
+[attachment.item_proto]
+display_name="Pgn_75"
+display_ch="⌐"
+flavor_text="A rather basic handgun."
+color=[63, 68, 94]
+can_stack=false
+size={"Volume"=4.5}
+lick_result={"FlavorText"=["#[]Cold plastic case, nothing too exceptional.", 43]}
+
+
+[[attachment]]
+integrated=false
+name="0_Pistol2"
+display_name="Mk.2-Aria"
+describe_types=["Pistol", "Weapon"]
+holder_kind="Weapon"
+weight=10.5
+features=[
+    {type="ProvidesRangedAttack", burst=1, "spread"=0.02, "pen_rating"=1, "damage_die"="1d4"}
+]
+provides_slots=[]
+
+[attachment.item_proto]
+display_name="Mk.2-Aria"
+display_ch="⌐"
+flavor_text="A handgun, simple but effective."
+color=[128, 112, 140]
+can_stack=false
+size={"Volume"=5.1}
+lick_result={"FlavorText"=["#[]Cold steel frame.", 17]}
+
+
+[[attachment]]
+integrated=false
+name="0_Shotgun1"
+display_name="Kronluk-A SG"
+describe_types=["Shotgun", "Weapon"]
+holder_kind="Weapon"
+weight=22.0
+features=[
+    {type="ProvidesRangedAttack", burst=8, "spread"=0.115, "pen_rating"=1, "damage_die"="1d2"}
+]
+provides_slots=[]
+
+[attachment.item_proto]
+display_name="Kronluk-A SG"
+display_ch="}"
+flavor_text="A classic if mediocre weapon."
+color=[133, 111, 109]
+can_stack=false
+size="Bulky"
+lick_result={"LongText"=[["#[]Never your favorite, but something", "#[]in the burnt taste feels familiar."], 34]}
+
+
+[[attachment]]
+integrated=false
+name="0_Sword1"
+display_name="MMEC Steel Blade"
+describe_types=["Sword", "Weapon"]
+holder_kind="Weapon"
+weight=32.0
+features=[
+    {type="ProvidesMeleeAttack", "pen_rating"=2, "damage_die"="1d5+1", "technique_rating"=36}
+]
+provides_slots=[]
+
+[attachment.item_proto]
+display_name="MMEC Steel Blade"
+display_ch="/"
+flavor_text="A commonplace melee weapon."
+color=[140, 153, 161]
+can_stack=false
+size="Bulky"
+lick_result={"FlavorText"=["#[]Cold steel; tinges of machine blood.", 36]}
+

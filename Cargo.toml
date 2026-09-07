@@ -12,3 +12,4 @@ ndarray = "0.17.2"
 rand = { version = "0.10.2", features = ["chacha"] }
 serde = { version = "1.0.229", features = ["derive"] }
 textwrap = "0.16.2"
+typetag = "0.2.23"

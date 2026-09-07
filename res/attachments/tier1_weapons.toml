@@ -1,0 +1,109 @@
+
+[[attachment]]
+integrated=false
+name="1_Pistol1"
+display_name="P89f"
+describe_types=["Pistol", "Weapon"]
+holder_kind="Weapon"
+weight=10.2
+features=[
+    {type="ProvidesRangedAttack", burst=3, "spread"=0.01, "pen_rating"=1, "damage_die"="1d4"}
+]
+provides_slots=[]
+
+[attachment.item_proto]
+display_name="P89f"
+display_ch="⌐"
+flavor_text="A pistol that fires three-round bursts."
+color=[122, 49, 44]
+can_stack=false
+size={"Volume"=5.0}
+lick_result={"FlavorText"=["#[]Smooth metal, tasting of grime and powder.", 42]}
+
+
+[[attachment]]
+integrated=false
+name="1_Shotgun1"
+display_name="KASen-2 SG"
+describe_types=["Shotgun", "Weapon"]
+holder_kind="Weapon"
+weight=10.2
+features=[
+    {type="ProvidesRangedAttack", burst=8, "spread"=0.12, "pen_rating"=2, "damage_die"="2"}
+]
+provides_slots=[]
+
+[attachment.item_proto]
+display_name="KASen-2 SG"
+display_ch="}"
+flavor_text="A good and proper shotgun."
+color=[208, 128, 16]
+can_stack=false
+size="Bulky"
+lick_result={"LongText"=[["#[]You check the safety, then lick the side...", "#[]Tantalizing notes of grease and soot.", "#[]Truly a trusted sister, this."], 44]}
+
+
+[[attachment]]
+integrated=false
+name="1_Shotgun2"
+display_name="SG-MV21"
+describe_types=["Shotgun", "Weapon"]
+holder_kind="Weapon"
+weight=16.0
+features=[
+    {type="ProvidesRangedAttack", burst=12, "spread"=0.2, "pen_rating"=2, "damage_die"="1d3"}
+]
+provides_slots=[]
+
+[attachment.item_proto]
+display_name="SG_MV21"
+display_ch="}"
+flavor_text="A bulkier shotgun, packing more of a punch."
+color=[122, 49, 44]
+can_stack=false
+size="Bulky"
+lick_result={"LongText"=[["#[]You check the safety, then lick the side...", "#[]Metal, grime, and the faintest bit of blood."], 44]}
+
+
+[[attachment]]
+integrated=false
+name="1_BeamGun1"
+display_name="Foc2 BG"
+describe_types=["Beam Gun", "Weapon"]
+holder_kind="Weapon"
+weight=16.0
+features=[
+    {type="ProvidesRangedAttack", burst=1, "spread"=0.04, "pen_rating"=2, "damage_die"="3d3"}
+]
+provides_slots=[]
+
+[attachment.item_proto]
+display_name="Foc2 BG"
+display_ch="⌡"
+flavor_text="Concentrated energy weapon."
+color=[36, 85, 108]
+can_stack=false
+size="Bulky"
+lick_result={"FlavorText"=["#[]Beam guns always have a certain sterility to them...", 52]}
+
+
+[[attachment]]
+integrated=false
+name="1_Sword1"
+display_name="Carbide Saber"
+describe_types=["Sword", "Weapon"]
+holder_kind="Weapon"
+weight=32.0
+features=[
+    {type="ProvidesMeleeAttack", "pen_rating"=3, "damage_die"="1d6+2", "technique_rating"=50}
+]
+provides_slots=[]
+
+[attachment.item_proto]
+display_name="Carbide Saber"
+display_ch="/"
+flavor_text="Elegant and powerful."
+color=[122, 49, 44]
+can_stack=false
+size="Bulky"
+lick_result={"FlavorText"=["#[]Oh, delectable carbide!", 23]}

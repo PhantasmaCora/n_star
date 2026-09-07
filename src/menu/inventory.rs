@@ -121,8 +121,8 @@ impl OverlayMenu for InventoryMenu {
             batch.set( Point{x: 10, y}, ColorPair{fg: item.color.into(), bg: inf_deep }, to_cp437( item.display_ch ) );
 
             let mut name = item.display_name.clone();
-            if name.len() > 16 {
-                name = item.display_name[0..(size.0 as usize - 12)].to_string() + "...";
+            if name.len() > 20 {
+                name = item.display_name[0..16].to_string() + "...";
             }
 
             batch.print_color( Point{ x:12, y}, name, ColorPair{bg: inf_deep, fg: WHITE.into() } );
