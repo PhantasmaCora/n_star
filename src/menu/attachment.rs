@@ -1,12 +1,10 @@
-use std::collections::{HashMap};
 
 use bracket_lib::prelude::*;
 
 use crate::menu::{OverlayMenu, OverlayReturn, MenuContext};
 
 use crate::actor::Actor;
-use crate::turn::Command;
-use crate::actor::attachment::{Attachment, SlotBorrow, AttachmentFeatureDescriptor};
+use crate::actor::attachment::{SlotBorrow, AttachmentFeatureDescriptor};
 
 enum Input {
     None,

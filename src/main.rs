@@ -12,7 +12,7 @@ use dataread::get_data;
 
 pub mod actor;
 use actor::{Actor, ActorKind, HealthComponent};
-use actor::attachment::{Attachment, AttachmentsComponent, AttachmentType, SlotContent};
+use actor::attachment::{Attachment, AttachmentType};
 
 pub mod turn;
 use turn::{Command, TurnAttempt, ActionResult};
@@ -82,7 +82,7 @@ impl GameState for State {
                     panic![]
                 }
 
-                let mut actor_ref = actor_opt.unwrap();
+                let actor_ref = actor_opt.unwrap();
 
                 let upd_context = MenuContext{
                     map: self.current_map.as_ref().unwrap(),

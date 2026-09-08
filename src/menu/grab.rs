@@ -1,4 +1,3 @@
-use std::collections::{HashMap};
 
 use bracket_lib::prelude::*;
 
@@ -6,8 +5,8 @@ use crate::menu::{OverlayMenu, OverlayReturn, MenuContext};
 
 use crate::actor::Actor;
 use crate::turn::Command;
-use crate::map::{Map, NonExclusiveOccupant};
-use crate::item::{InvItem, Inventory, ItemSize};
+use crate::map::NonExclusiveOccupant;
+use crate::item::{InvItem, ItemSize};
 
 
 enum Input {

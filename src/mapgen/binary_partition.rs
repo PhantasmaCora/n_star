@@ -1,11 +1,11 @@
 use std::cmp;
-use std::collections::{VecDeque, HashMap, HashSet};
+use std::collections::{VecDeque, HashSet};
 
 use rand::{RngExt, rngs::ChaCha20Rng};
 
 use ndarray::prelude::*;
 
-use noise::{NoiseFn, Perlin, Seedable};
+use noise::{NoiseFn, Perlin};
 
 use crate::mapgen::CarverHandle;
 

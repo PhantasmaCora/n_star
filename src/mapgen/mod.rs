@@ -7,16 +7,15 @@ use rand::{RngExt, SeedableRng};
 use rand::rngs::ChaCha20Rng;
 
 
-use crate::map::{Tile, Map, NonExclusiveOccupant};
+use crate::map::{Tile, Map};
 
-use crate::item::{InvItem, ItemSize, LickResponse};
 
 
 mod lw_mapalgo;
 pub use lw_mapalgo::LightweightMap;
 
 mod carver_handle;
-use carver_handle::{BoolViewBatchHandle, EqViewBatchHandle, WideChainCarverHandle, IndependentPointSetCarverHandle};
+use carver_handle::{BoolViewBatchHandle, WideChainCarverHandle};
 
 mod limited_carver_handle;
 use limited_carver_handle::{LimitedCarverHandle, MapBatchHandle};
@@ -164,7 +163,7 @@ impl MapGenerator {
 
 
 
-        let mut map = Map {
+        let map = Map {
             tileset,
             tiles: uarr,
             exclusive_occupancy: HashMap::new(),
