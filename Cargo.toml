@@ -9,6 +9,7 @@ deterministic_default_hasher = "0.14.2"
 figment = { version = "0.10.19", features = ["toml"] }
 freetype-sys = { version = "0.23", features = ["bundled"] }
 ndarray = "0.17.2"
+noise = "0.9.0"
 rand = { version = "0.10.2", features = ["chacha"] }
 serde = { version = "1.0.229", features = ["derive"] }
 textwrap = "0.16.2"

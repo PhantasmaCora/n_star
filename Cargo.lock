@@ -1069,6 +1069,7 @@ dependencies = [
  "figment",
  "freetype-sys",
  "ndarray",
+ "noise",
  "rand 0.10.2",
  "serde",
  "textwrap",
@@ -1168,6 +1169,17 @@ dependencies = [
  "cc",
  "cfg-if 1.0.4",
  "libc",
+]
+
+[[package]]
+name = "noise"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6da45c8333f2e152fc665d78a380be060eb84fad8ca4c9f7ac8ca29216cff0cc"
+dependencies = [
+ "num-traits",
+ "rand 0.8.7",
+ "rand_xorshift",
 ]
 
 [[package]]

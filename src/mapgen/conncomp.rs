@@ -11,7 +11,7 @@ use rand::rngs::ChaCha20Rng;
 
 use bracket_lib::pathfinding::a_star_search;
 
-use crate::mapgen::{CarverHandle, LightweightMap};
+use crate::mapgen::{CarverHandle, LimitedCarverHandle, LightweightMap};
 
 
 pub struct ConnCompLabeler {
@@ -31,7 +31,7 @@ impl ConnCompLabeler {
         }
     }
 
-    pub fn label(&self, handle: &impl CarverHandle) -> Vec<HashSet<(usize, usize)>> {
+    pub fn label(&self, dim: (usize, usize), test: &dyn Fn( (usize, usize) ) -> bool ) -> Vec<HashSet<(usize, usize)>> {
 
         // list of connected components
         let mut ccs = HashMap::<usize, HashSet<(usize, usize)>, DeterministicDefaultHasher>::with_hasher(DeterministicDefaultHasher);
@@ -40,10 +40,10 @@ impl ConnCompLabeler {
         let mut label_map = HashMap::<usize, usize>::new();
 
         // working array of labels, matches size of input
-        let mut label_arr = Array2::<usize>::default(handle.dim());
+        let mut label_arr = Array2::<usize>::default( dim );
 
         // working dimensions
-        let (sx,sy) = handle.dim();
+        let (sx,sy) = dim;
         let sx = sx as i32;
         let sy = sy as i32;
 
@@ -57,7 +57,7 @@ impl ConnCompLabeler {
 
         for x in 0i32..sx {
             for y in 0i32..sy {
-                if handle.inspect((x as usize, y as usize)).unwrap() {
+                if test((x as usize, y as usize)) {
                     continue;
                 }
 
@@ -140,7 +140,21 @@ pub struct ConnCompTunneler {
 
 impl ConnCompTunneler {
     pub fn cull_small(&self, handle: &mut impl CarverHandle, min_size: usize) {
-        let ccs = self.labeler.label(handle);
+        let ccs = self.labeler.label(  handle.dim(), &|p| handle.inspect(p).unwrap() );
+
+        for cc in ccs.iter() {
+            if cc.len() < min_size {
+                // fill in the small gap
+                for p in cc.iter() {
+                    handle.fill(*p);
+                }
+                handle.push_batch();
+            }
+        }
+    }
+
+    pub fn limited_cull_small(&self, handle: &mut impl LimitedCarverHandle, min_size: usize) {
+        let ccs = self.labeler.label(  handle.dim(), &|p| handle.inspect(p).unwrap().0 );
 
         for cc in ccs.iter() {
             if cc.len() < min_size {
@@ -154,7 +168,7 @@ impl ConnCompTunneler {
     }
 
     pub fn connect_all_astar(&self, handle: &mut impl CarverHandle, weights: (f32, f32, f32), rng: &mut ChaCha20Rng ) {
-        let mut ccs = self.labeler.label(handle);
+        let mut ccs = self.labeler.label( handle.dim(), &|p| handle.inspect(p).unwrap() );
 
         // necessary for determinism; otherwise the hasher randomization will impact results
         ccs.sort_by_key( |cc| cc.len() );
@@ -238,7 +252,101 @@ impl ConnCompTunneler {
             handle.push_batch();
 
             // re-label since things got cut open
-            ccs = self.labeler.label(handle);
+            ccs = self.labeler.label( handle.dim(), &|p| handle.inspect(p).unwrap() );
+            ccs.sort_by_key( |cc| cc.len() );
+        }
+    }
+
+    pub fn connect_limited_astar(&self, handle: &mut impl LimitedCarverHandle, weights: (f32, f32, f32), rng: &mut ChaCha20Rng ) {
+        let mut ccs = self.labeler.label( handle.dim(), &|p| handle.inspect(p).unwrap().0 );
+
+        // necessary for determinism; otherwise the hasher randomization will impact results
+        ccs.sort_by_key( |cc| cc.len() );
+
+        let mut max_iter = 256;
+
+        let sz = handle.dim();
+
+        while ccs.len() > 1 && max_iter > 0 {
+            max_iter -= 1;
+
+            let mut comp_a = ccs.pop().unwrap();
+
+            let size = ccs.len();
+            let mut comp_b = ccs.remove( rng.random_range(0..size) );
+
+            // average out for centers.
+            let sum_a = comp_a.iter().fold( (0,0), |a: (usize, usize), e: &(usize, usize)|{(a.0 + e.0, a.1 + e.1)} );
+            let center_a = ( (sum_a.0 as f32 / comp_a.len() as f32) as usize, (sum_a.1 as f32 / comp_a.len() as f32) as usize );
+
+            let sum_b = comp_b.iter().fold( (0,0), |a: (usize, usize), e: &(usize, usize)|{(a.0 + e.0, a.1 + e.1)} );
+            let center_b = ( (sum_b.0 as f32 / comp_b.len() as f32) as usize, (sum_b.1 as f32 / comp_b.len() as f32) as usize );
+
+            // find nearest point in set
+            let mut collect_a: Vec<(usize, usize)> = comp_a.drain().collect();
+            collect_a.sort_by_key( |pt| pt.0.abs_diff( center_b.0 ) + pt.1.abs_diff( center_b.1 ) );
+            let target_a = collect_a[ 0 ];
+
+            let mut collect_b: Vec<(usize, usize)> = comp_b.drain().collect();
+            collect_b.sort_by_key( |pt| pt.0.abs_diff( center_a.0 ) + pt.1.abs_diff( center_a.1 ) );
+            let target_b = collect_b[ 0 ];
+
+            let mut work_arr = Array2::<f32>::default( sz );
+
+            for x in 0..sz.0 {
+                for y in 0..sz.1 {
+                    if comp_a.contains(&(x,y)) || comp_b.contains(&(x,y)) {
+                        continue; // keep the zero cost for space in either component
+                    }
+
+                    let i = handle.inspect((x,y)).unwrap();
+
+                    if !i.0 {
+                        work_arr[[x,y]] = weights.0; // low cost for empty space
+                    } else {
+                        let mut adj = false;
+                        for dx in -1..=1 {
+                            for dy in -1..=1 {
+                                if (dx == 0 && dy == 0) || (dx < 0 && x == 0) || (dy < 0 && y == 0) { continue; }
+                                let nx = (x as i32 + dx) as usize;
+                                let ny = (y as i32 + dy) as usize;
+
+                                if nx >= sz.0 || ny >= sz.1 { continue; }
+
+                                let ne = handle.inspect((nx, ny)).unwrap();
+                                if ne.0 {
+                                    adj = true;
+                                    break;
+                                }
+                            }
+                            if adj {break;}
+                        }
+                        if !i.1 {
+                            work_arr[[x,y]] = 100000.0;
+                        } else if adj {
+                            work_arr[[x,y]] = weights.2; // high cost for room border walls
+                        } else {
+                            work_arr[[x,y]] = weights.1; // medium cost for walls
+                        }
+                    }
+                }
+            }
+
+            let lwm = LightweightMap{ array: &work_arr };
+            let astar = a_star_search( lwm.point_to_index(target_a), lwm.point_to_index(target_b), &lwm );
+
+            let path = astar.steps;
+
+            //let path = candidates.remove(min_idx as usize);
+            for idx in path.iter() {
+                let point = lwm.index_to_point(*idx);
+                handle.carve(point);
+            }
+
+            handle.push_batch();
+
+            // re-label since things got cut open
+            ccs = self.labeler.label( handle.dim(), &|p| handle.inspect(p).unwrap().0 );
             ccs.sort_by_key( |cc| cc.len() );
         }
     }

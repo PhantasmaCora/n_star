@@ -613,10 +613,33 @@ fn main() -> BError {
         passable: false,
         opaque: true
     };
+    let gt = Tile{
+        fg: (89, 86, 85),
+        bg: (0,0,0),
+        tr:  Box::new( Wall4WayTileRender{
+            connects: vec![1usize, 2usize].drain(..).collect(),
+            lower:('▄', false),
+            upper:('▀', false),
+            left:('▌', false),
+            right:('▐', false),
+            horizontal:('▓', false),
+            vertical:('▓', false),
+            misc:(' ', true)
+        } ),
+        passable: false,
+        opaque: true
+    };
+    let gf = Tile{
+        fg: (133, 131, 130),
+        bg: (0,0,0),
+        tr: Box::new( FixedTileRender{ch: '*'} ),
+        passable: true,
+        opaque: false
+    };
 
     let mg = MapGenerator{w: 128, h: 128};
     let m = mg.generate_map(
-        vec![ bt, wt ]
+        vec![ bt, wt, gt, gf ]
     );
 
     let mut idx = 129;

@@ -3,8 +3,6 @@ use std::collections::{HashMap, HashSet};
 
 use ndarray::prelude::*;
 
-use deterministic_default_hasher::DeterministicDefaultHasher;
-
 use rand::{RngExt, SeedableRng};
 use rand::rngs::ChaCha20Rng;
 
@@ -18,7 +16,10 @@ mod lw_mapalgo;
 pub use lw_mapalgo::LightweightMap;
 
 mod carver_handle;
-use carver_handle::WideChainCarverHandle;
+use carver_handle::{BoolViewBatchHandle, EqViewBatchHandle, WideChainCarverHandle, IndependentPointSetCarverHandle};
+
+mod limited_carver_handle;
+use limited_carver_handle::{LimitedCarverHandle, MapBatchHandle};
 
 mod cellauto;
 use cellauto::JAGGED_CAVES;
@@ -28,6 +29,9 @@ use schism::SchismCarver;
 
 mod conncomp;
 use conncomp::{ConnCompLabeler, ConnCompTunneler};
+
+mod binary_partition;
+use binary_partition::{BinaryPartitioner, BinaryPartitionRuinGrid};
 
 
 pub struct MapGenerator {
@@ -73,7 +77,39 @@ impl MapGenerator {
             cct.connect_all_astar(&mut ch, (0.1, 1.0, 1.0), &mut rng);
         }
 
-        /*{
+        let uarr = Array2::<usize>::default( (self.w, self.h) );
+        let tsm = TileSetMapper{};
+
+        let mut uarr = tsm.map_tile(barr.borrow());
+
+        {
+            let view = uarr.slice_mut(s![self.w/2..3*self.w/4, 2*self.h/7..self.h/2]);
+            //let mut ich = IndependentPointSetCarverHandle::from_view(view, false, true);
+
+            let bpg = BinaryPartitionRuinGrid {
+                grid_x: 4,
+                grid_y: 4,
+                partitioner: BinaryPartitioner {
+                    min_w: 2,
+                    max_w: 5,
+                    min_h: 2,
+                    max_h: 5,
+                    split_chance: 0.3
+                },
+                types: vec![(0.5, 0), (0.7, 3), (1000.0, 2)],
+                edge_perl: (-0.8, 0.5),
+                edge_scale: 12.0,
+                noise_scale: (0.5, 0.5),
+                logistic_params: (1.0, 0.5),
+                dont_break: { let mut hs = HashSet::new(); hs.insert(1); hs },
+                corner_scale: (1, 1)
+            };
+
+            bpg.make_partition_grid( view, &mut rng );
+
+        }
+
+        /*{ // Catacombs preset
             let view = barr.slice_mut(s![1..self.w-1, 1..self.h-1]);
             let mut ch = BoolViewBatchHandle::new(view);
 
@@ -100,10 +136,33 @@ impl MapGenerator {
 
         }*/
 
-        let uarr = Array2::<usize>::default( (self.w, self.h) );
-        let tsm = TileSetMapper{};
 
-        let uarr = tsm.map_tile(barr.borrow());
+
+        {
+            let view = uarr.slice_mut(s![1..self.w-1, 1..self.h-1]);
+
+            let mut breaks = HashMap::new();
+            breaks.insert(2,3);
+
+            let mut fills = HashMap::new();
+            fills.insert(0,1);
+            fills.insert(3,2);
+
+            let mut solid = HashSet::new();
+            solid.insert(1);
+            solid.insert(2);
+
+            let mut lch = MapBatchHandle::<usize>::new(view, breaks, fills, solid);
+
+            let cct = ConnCompTunneler{
+                labeler: ConnCompLabeler::four()
+            };
+
+            cct.limited_cull_small(&mut lch, 6);
+            cct.connect_limited_astar( &mut lch, (0.1, 1.0, 0.96), &mut rng );
+        }
+
+
 
         let mut map = Map {
             tileset,
@@ -113,7 +172,7 @@ impl MapGenerator {
         };
 
         // add test items
-        let proto = InvItem {
+        /*let proto = InvItem {
             display_name: "Strange Rock".to_string(),
             display_ch: 'º',
             color: (128, 208, 208),
@@ -159,7 +218,7 @@ impl MapGenerator {
             }
 
             map.add_neo( NonExclusiveOccupant::Item( proto.clone() ), (rx as i32, ry as i32) );
-        }
+        }*/
 
         map
     }
@@ -191,66 +250,10 @@ pub trait CarverHandle {
 }
 
 
-pub struct BoolViewBatchHandle<'a>{
-    view: ArrayViewMut<'a, bool, Ix2>,
-    carve_batch: HashSet<(usize, usize), DeterministicDefaultHasher>,
-    fill_batch: HashSet<(usize, usize), DeterministicDefaultHasher>
-}
-
-impl<'a> BoolViewBatchHandle<'a> {
-    pub fn new( av: ArrayViewMut<'a, bool, Ix2> ) -> Self {
-        BoolViewBatchHandle{
-            view: av,
-            carve_batch: HashSet::<(usize, usize), DeterministicDefaultHasher>::with_hasher(DeterministicDefaultHasher),
-            fill_batch: HashSet::<(usize, usize), DeterministicDefaultHasher>::with_hasher(DeterministicDefaultHasher)
-        }
-    }
-}
-
-impl<'a> CarverHandle for BoolViewBatchHandle<'a> {
-    fn dim(&self) -> (usize, usize) {
-        self.view.dim()
-    }
-
-    fn inspect(&self, point: (usize, usize)) -> Option<bool> {
-        let sz = self.view.dim();
-        if point.0 >= sz.0 || point.1 >= sz.1 {
-            return None;
-        } else {
-            return Some( self.view[[point.0, point.1]] );
-        }
-    }
-
-    fn carve(&mut self, point: (usize, usize)) {
-        self.fill_batch.remove(&point);
-        self.carve_batch.insert(point);
-    }
-
-    fn fill(&mut self, point: (usize, usize)) {
-        self.carve_batch.remove(&point);
-        self.fill_batch.insert(point);
-    }
-
-    fn push_batch(&mut self) {
-        for p in self.carve_batch.drain() {
-            self.view[p] = false;
-        }
-        for p in self.fill_batch.drain() {
-            self.view[p] = true;
-        }
-    }
-
-    fn discard_batch(&mut self) {
-        self.carve_batch.clear();
-        self.fill_batch.clear();
-    }
-}
-
-
 pub struct TileSetMapper {}
 
 impl TileSetMapper {
-    fn map_tile(&self, src_arr: &ArrayRef<bool, Ix2>) -> Array2<usize> {
+    fn map_tile( &self, src_arr: &ArrayRef<bool, Ix2> ) -> Array2<usize> {
         let mut out = Array2::<usize>::default( src_arr.dim() );
 
         for x in 0..src_arr.dim().0 {
