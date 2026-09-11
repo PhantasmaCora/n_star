@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-use std::cmp::{min, max};
 use std::collections::{HashMap, HashSet};
 
 
@@ -17,28 +15,26 @@ mod lw_mapalgo;
 pub use lw_mapalgo::LightweightMap;
 
 mod carver_handle;
-use carver_handle::{BoolViewBatchHandle, WideChainCarverHandle, EqViewBatchHandle, IndependentPointSetCarverHandle};
+use carver_handle::{BoolViewBatchHandle, WideChainCarverHandle};
 
 mod limited_carver_handle;
 use limited_carver_handle::{LimitedCarverHandle, MapBatchHandle};
 
 mod cellauto;
-use cellauto::{SimpleBooleanCellAuto, JAGGED_CAVES};
+use cellauto::JAGGED_CAVES;
 
 mod schism;
 use schism::SchismCarver;
 
 mod superf;
-use superf::SuperFormulaParameter;
 
 mod conncomp;
 use conncomp::{ConnCompLabeler, ConnCompTunneler};
 
 mod binary_partition;
-use binary_partition::{BinaryPartitioner, BinaryPartitionRuinGrid, BinaryPartitionRooms};
+use binary_partition::{BinaryPartitioner, BinaryPartitionRuinGrid};
 
 mod room_placer;
-use room_placer::RoomPlacer;
 
 
 pub struct MapGenerator {

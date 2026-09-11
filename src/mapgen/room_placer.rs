@@ -1,10 +1,8 @@
-use std::collections::{HashSet};
 
 
 use ndarray::prelude::*;
 use ndarray_conv::{ConvExt, ConvMode, PaddingMode};
 
-use imageproc::image::{RgbImage, Rgb};
 
 use rand::rngs::ChaCha20Rng;
 use rand::RngExt;
@@ -80,7 +78,7 @@ impl RoomPlacer {
 
             let conv = av.conv( &kernel, ConvMode::Full, PaddingMode::Zeros ).unwrap();
 
-            let mut possible: Vec<(usize, usize)> = conv.slice( s![self.wall_scale+w..self.wall_scale+av.dim().0, self.wall_scale+h..self.wall_scale+av.dim().1] ).into_indexed_iter().filter_map( |(p, v)| if *v == 0 {Some(p)} else {None} ).collect();
+            let possible: Vec<(usize, usize)> = conv.slice( s![self.wall_scale+w..self.wall_scale+av.dim().0, self.wall_scale+h..self.wall_scale+av.dim().1] ).into_indexed_iter().filter_map( |(p, v)| if *v == 0 {Some(p)} else {None} ).collect();
 
             if possible.len() == 0 {
                 continue;

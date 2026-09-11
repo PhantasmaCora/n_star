@@ -1,7 +1,7 @@
-use std::cell::{RefCell, Ref, RefMut, OnceCell};
+use std::cell::OnceCell;
 use std::collections::{HashMap};
 use std::fmt::Debug;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 use serde::Deserialize;
 
@@ -205,7 +205,7 @@ impl AttachmentsComponent {
         }
         {
             let p = self.hm.get_mut(&parent_id);
-            if let Some(mut parent) = p {
+            if let Some(parent) = p {
                 parent.slots[parent_slot] = SlotContent::Attached( *child.id.as_ref().unwrap() );
                 child.parent = Some( *parent.id.as_ref().unwrap() );
             }

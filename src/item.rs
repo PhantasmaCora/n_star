@@ -3,7 +3,6 @@ use serde::{Deserialize, Deserializer};
 
 use textwrap::wrap;
 
-use crate::actor::attachment::{Attachment, AttachmentsComponent};
 
 
 #[derive(Clone, Debug, Deserialize)]
