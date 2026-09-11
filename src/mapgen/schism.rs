@@ -28,7 +28,7 @@ impl SchismCarver {
             let scale : f32 = rng.random::<f32>() * (self.scale_max - self.scale_min) + self.scale_min;
             let isc = scale.ceil() as i32;
 
-            let mut inner = ( isc, sz.0 as i32 - isc, isc, sz.1 as i32 - isc );
+            let mut inner = ( isc/2 + 1, sz.0 as i32 - isc/2 - 1, isc/2 + 1, sz.1 as i32 - isc/2 - 1 );
 
             if inner.0 > inner.1 {
                 inner.0 = (inner.0 + inner.1) / 2;

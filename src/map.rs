@@ -29,9 +29,10 @@ pub struct Tile {
     pub opaque: bool,
 }
 
-#[derive(Debug)]
+
 pub enum NonExclusiveOccupant {
-    Item(InvItem)
+    Item(InvItem),
+    Corpse
 }
 
 

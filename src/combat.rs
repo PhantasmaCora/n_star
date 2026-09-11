@@ -4,7 +4,17 @@
 
 
 
-pub fn map_penetration(rating: i32) -> [f32, 4] {
+
+
+
+#[derive(Clone)]
+pub struct MeleeAttackSpec {
+    pub pen_rating: i32,
+    pub damage_die: String,
+    pub technique_rating: i32
+}
+
+pub fn map_penetration(rating: i32) -> [f32; 4] {
     match rating {
         -3 => [0.125, 0.0, 0.0, 0.0],
         -2 => [0.25, 0.01, 0.0, 0.0],

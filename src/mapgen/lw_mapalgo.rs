@@ -48,6 +48,11 @@ impl<'a> BaseMap for LightweightMap<'a> {
             }
 
             let cost = self.array[[dp.0 as usize, dp.1 as usize]];
+
+            if cost > 100.0 {
+                continue;
+            }
+
             let didx = self.point_to_index( (dp.0 as usize, dp.1 as usize) );
             exits.push( (didx, cost) );
         }

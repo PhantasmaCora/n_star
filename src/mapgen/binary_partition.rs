@@ -9,6 +9,8 @@ use noise::{NoiseFn, Perlin};
 
 use crate::mapgen::CarverHandle;
 
+use crate::mapgen::RoomMaker;
+
 
 pub struct URect {
     x: usize,
@@ -50,7 +52,7 @@ impl BinaryPartitioner {
                 let mut do_h = true;
 
                 if can_split_h && can_split_v {
-                    do_h = rng.random_bool(0.5);
+                    do_h = rng.random();
                 } else if !can_split_h && !can_split_v {
                     done.push(current);
                     continue;
@@ -79,6 +81,51 @@ impl BinaryPartitioner {
     }
 
 }
+
+
+pub struct BinaryPartitionRooms {
+    pub makers: Vec<(f32, Box<dyn RoomMaker>)>,
+    pub grid_x: usize,
+    pub grid_y: usize,
+    pub partitioner: BinaryPartitioner
+}
+
+impl BinaryPartitionRooms {
+    pub fn make_rooms<'a>(&self, mut av: ArrayViewMut<'a, bool, Ix2>, rng: &mut ChaCha20Rng) {
+        let size = av.dim();
+
+        let part_size = (size.0 / self.grid_x, size.1 / self.grid_y);
+
+        let part = self.partitioner.make_partition( part_size, rng );
+
+        //let offset_x = rng.random_range(0..self.grid_x);
+        //let offset_y = rng.random_range(0..self.grid_y);
+
+        for rect in part {
+            let x = rect.x * self.grid_x;// + offset_x;
+            let y = rect.y * self.grid_y;// + offset_y;
+            let w = rect.w * self.grid_x;
+            let h = rect.h * self.grid_y;
+
+            let mut rm_av = av.slice_mut(s![x..x+w, y..y+h]);
+
+            let f: f32 = rng.random();
+
+            for (chance, maker) in self.makers.iter() {
+                if f < *chance {
+                    maker.make_room_boolean(&mut rm_av, rng);
+                    break;
+                }
+            }
+
+        }
+
+    }
+
+
+}
+
+
 
 
 

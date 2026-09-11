@@ -3,9 +3,10 @@ use std::collections::HashMap;
 use rand::prelude::*;
 use rand::rngs::ChaCha20Rng;
 
-use bracket_lib::prelude::{BaseMap, Algorithm2D};
+use bracket_lib::prelude::{BaseMap, Algorithm2D, parse_dice_string};
 
 use crate::actor::Actor;
+use crate::combat::{map_penetration, MeleeAttackSpec};
 use crate::map;
 use crate::map::{NonExclusiveOccupant};
 
@@ -70,9 +71,9 @@ impl ActionResolver for MoveStep {
         let start_pos = acting.position;
         let end_pos = (acting.position.0 + self.x, acting.position.1 + self.y);
 
-        if let Some( other_name ) = context.map.exclusive_occupancy.get( &end_pos ) {
-            return ActionResult::TryAlternate( Box::new( MeleeAttack{target: other_name.clone()} ) );
-        }
+        if let Some( other_id ) = context.map.exclusive_occupancy.get( &end_pos ) {
+            return ActionResult::TryAlternate( Box::new( MeleeAttack{target: other_id.clone(), attack: MeleeAttackSpec{ pen_rating: 1, damage_die: "1d4".to_string(), technique_rating: 36} } ))
+        };
 
         let exits = context.map.get_available_exits( context.map.point2d_to_index( start_pos.into() ) );
         let (idxs, costs): (Vec<_>, Vec<_>) = exits.into_iter().unzip();
@@ -149,7 +150,8 @@ impl ActionResolver for GrabItem {
 
 // maybe this should work off an offset, like MoveStep, rather than a target declaration? would help if we get around to multitile entities
 pub struct MeleeAttack {
-    target: String
+    target: String,
+    attack: MeleeAttackSpec
 }
 impl ActionResolver for MeleeAttack {
     fn resolve(&self, acting: &mut Actor, context: &mut ActionResolutionContext) -> ActionResult {
@@ -162,11 +164,40 @@ impl ActionResolver for MeleeAttack {
 
             if idxs.contains( &context.map.point2d_to_index( target_pos.into() ) ) {
                 if let Some(hc) = &mut targeted.health {
-                    hc.take_damage( 1 );
-                    return ActionResult::Succeeded( 1024 );
+                    let pen_base = self.attack.pen_rating - hc.armor_rating;
+
+                    let chances = map_penetration(pen_base);
+                    let mut pens: usize = 5;
+                    let f: f32 = context.rng.random();
+
+                    for (idx, p) in chances.iter().enumerate().rev() {
+                        if f > *p {
+                            pens = idx;
+                        } else {
+                            break;
+                        }
+                    }
+
+                    print!("{}... {} rating, {} pens. ", f, pen_base, pens);
+
+                    let dt = parse_dice_string( &self.attack.damage_die ).unwrap();
+                    let mut dmg = 0;
+
+                    for _i in 0..pens {
+                        for _n in 0..dt.n_dice {
+                            dmg += context.rng.random_range(1..=dt.die_type);
+                        }
+                        dmg += dt.bonus;
+                    }
+
+                    print!( "{} takes {} damage!\n", &self.target, dmg );
+
+                    hc.take_damage( dmg );
+                    return ActionResult::Succeeded( (1024 as f32 / self.attack.technique_rating as f32) as i32 );
                 }
             }
         }
+        print!("{} not found\n", self.target);
 
         return ActionResult::Failed;
     }

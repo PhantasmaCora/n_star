@@ -54,11 +54,20 @@ pub fn desc_sr(sr: i32) -> String {
 }
 
 
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub enum BurstType {
+    #[default]
+    None,
+    Scatter(usize),
+    Rapid(usize)
+}
 
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ProvidesRangedAttack {
-    pub burst: usize,
+    #[serde(default)]
+    pub burst: BurstType,
+
     pub spread: f32,
     pub pen_rating: i32,
     pub damage_die: String
@@ -82,10 +91,14 @@ impl AttachmentFeature for ProvidesRangedAttack {
         let mut out = vec![];
 
         let mut txt = format!("Ranged ♠{}, dmg {}", &self.pen_rating, &self.damage_die);
-        if self.burst > 1 {
-            txt = format!("Ranged {}x ♠{}, dmg {}", &self.burst, &self.pen_rating, &self.damage_die);
+        if let BurstType::Scatter(n) = self.burst {
+            txt = format!("Ranged {}x ♠{}, dmg {}", n, &self.pen_rating, &self.damage_die);
         }
         out.push(txt);
+
+        if let BurstType::Rapid(n) = self.burst {
+            out.push( format!(" > {}-round burst", n) );
+        }
 
         if self.spread > 0.05 {
             out.push( format!( " > Across {:.1} deg spread", &self.spread.to_degrees() ) );

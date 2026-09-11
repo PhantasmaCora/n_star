@@ -7,7 +7,7 @@ describe_types=["Pistol", "Weapon"]
 holder_kind="Weapon"
 weight=10.2
 features=[
-    {type="ProvidesRangedAttack", burst=3, "spread"=0.01, "pen_rating"=1, "damage_die"="1d4"}
+    {type="ProvidesRangedAttack", burst={Rapid=3}, "spread"=0.01, "pen_rating"=1, "damage_die"="1d4"}
 ]
 provides_slots=[]
 
@@ -29,7 +29,7 @@ describe_types=["Shotgun", "Weapon"]
 holder_kind="Weapon"
 weight=10.2
 features=[
-    {type="ProvidesRangedAttack", burst=8, "spread"=0.12, "pen_rating"=2, "damage_die"="2"}
+    {type="ProvidesRangedAttack", burst={Scatter=8}, "spread"=0.12, "pen_rating"=2, "damage_die"="2"}
 ]
 provides_slots=[]
 
@@ -51,7 +51,7 @@ describe_types=["Shotgun", "Weapon"]
 holder_kind="Weapon"
 weight=16.0
 features=[
-    {type="ProvidesRangedAttack", burst=12, "spread"=0.2, "pen_rating"=2, "damage_die"="1d3"}
+    {type="ProvidesRangedAttack", burst={Scatter=12}, "spread"=0.2, "pen_rating"=2, "damage_die"="1d3"}
 ]
 provides_slots=[]
 
@@ -73,7 +73,7 @@ describe_types=["Beam Gun", "Weapon"]
 holder_kind="Weapon"
 weight=16.0
 features=[
-    {type="ProvidesRangedAttack", burst=1, "spread"=0.04, "pen_rating"=2, "damage_die"="3d3"}
+    {type="ProvidesRangedAttack", "spread"=0.04, "pen_rating"=2, "damage_die"="3d3"}
 ]
 provides_slots=[]
 

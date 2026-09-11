@@ -16,8 +16,8 @@ pub use grab::GrabMenu;
 mod inspect_inv;
 pub use inspect_inv::InspectInvItemMenu;
 
-mod attachment;
-pub use attachment::AttachmentOverviewMenu;
+//mod attachment;
+//pub use attachment::AttachmentOverviewMenu;
 
 
 pub enum OverlayManagerReturn {

@@ -7,30 +7,26 @@ use rand::rngs::ChaCha20Rng;
 
 use bracket_lib::prelude::*;
 
-pub mod dataread;
-use dataread::get_data;
 
-pub mod actor;
-use actor::{Actor, ActorKind, HealthComponent};
-use actor::attachment::{Attachment, AttachmentType};
 
-pub mod turn;
-use turn::{Command, TurnAttempt, ActionResult};
 
-pub mod npc_brain;
+use n_star::dataread::get_data;
 
-pub mod item;
-use item::{Inventory, InvItem, ItemSize, LickResponse};
+use n_star::actor;
+use n_star::actor::{Actor, ActorKind, HealthComponent};
+use n_star::actor::attachment::{Attachment, AttachmentType};
 
-pub mod map;
-use map::{Map, Tile, NonExclusiveOccupant};
-use map::tile_render::{TileRenderContext, TileRender, TileDrawType, FixedTileRender, Wall4WayTileRender};
+use n_star::turn;
+use n_star::turn::{Command, TurnAttempt, ActionResult};
 
-pub mod mapgen;
-use mapgen::MapGenerator;
+use n_star::item::{Inventory, InvItem, ItemSize, LickResponse};
 
-pub mod menu;
-use menu::{ OverlayMenuManager, OverlayManagerReturn, MenuContext };
+use n_star::map::{Map, Tile, NonExclusiveOccupant};
+use n_star::map::tile_render::{TileRenderContext, TileRender, TileDrawType, FixedTileRender, Wall4WayTileRender};
+
+use n_star::mapgen::MapGenerator;
+
+use n_star::menu::{ OverlayMenuManager, OverlayManagerReturn, MenuContext, GrabMenu, InventoryMenu };
 
 
 
@@ -230,6 +226,26 @@ impl State {
                 }
 
                 // maintain phase. clear out anybody who died etc.
+                let mut dead_keys = vec![];
+
+                for k in self.actors.keys() {
+                    let mut dead = false;
+                    {
+                        let a = self.actors.get(k).unwrap();
+                        if let Some(hc) = &a.health {
+                            if !hc.is_alive {
+                                dead_keys.push(k.clone());
+                            }
+                        }
+                    }
+                }
+
+                for k in dead_keys.drain(..) {
+                    let a = self.actors.remove(&k).unwrap();
+                    self.current_map.as_mut().unwrap().exclusive_occupancy.remove(&a.position);
+                    self.current_map.as_mut().unwrap().add_neo( NonExclusiveOccupant::Corpse, a.position );
+                }
+
             }
         }
         // loop broken - either it is the player's turn or the player character is dead
@@ -280,7 +296,7 @@ impl State {
 
                             let o_bracketpt = Point{x: ox, y: oy};
 
-                            if ( ox < 0 || ox > map.tiles.dim().0 as i32 || oy < 0 || oy > map.tiles.dim().1 as i32 ) || (
+                            if ( ox < 0 || ox >= map.tiles.dim().0 as i32 || oy < 0 || oy >= map.tiles.dim().1 as i32 ) || (
                                 ( fov.is_some() && !fov.unwrap().contains( &o_bracketpt ) ) &&
                                 ( memory.is_none() || !memory.unwrap().contains( &o_bracketpt ) )
                             ) {
@@ -331,6 +347,10 @@ impl State {
                                     NonExclusiveOccupant::Item(it) => {
                                         character = it.display_ch;
                                         fg_color = it.color.into();
+                                    }
+                                    NonExclusiveOccupant::Corpse => {
+                                        character = '%';
+                                        fg_color = ( 240, 56, 32 ).into();
                                     }
                                 }
                             }
@@ -391,9 +411,9 @@ impl State {
             VirtualKeyCode::Numpad3 | VirtualKeyCode::PageUp => { self.chain_player_orders.push_back(Command::MoveStep{x: 1, y:-1}); },
             VirtualKeyCode::Numpad9 | VirtualKeyCode::PageDown => { self.chain_player_orders.push_back(Command::MoveStep{x: 1, y:1}); },
 
-            VirtualKeyCode::E => { self.menu_manager.set_mode( Box::new( menu::InventoryMenu::new() ) ); self.game_mode = GameMode::OverlayMenu; },
-            VirtualKeyCode::A => { self.menu_manager.set_mode( Box::new( menu::AttachmentOverviewMenu::new() ) ); self.game_mode = GameMode::OverlayMenu; },
-            VirtualKeyCode::G => { self.menu_manager.set_mode( Box::new( menu::GrabMenu::new() ) ); self.game_mode = GameMode::OverlayMenu; },
+            VirtualKeyCode::E => { self.menu_manager.set_mode( Box::new( InventoryMenu::new() ) ); self.game_mode = GameMode::OverlayMenu; },
+            /*VirtualKeyCode::A => { self.menu_manager.set_mode( Box::new( AttachmentOverviewMenu::new() ) ); self.game_mode = GameMode::OverlayMenu; },*/
+            VirtualKeyCode::G => { self.menu_manager.set_mode( Box::new( GrabMenu::new() ) ); self.game_mode = GameMode::OverlayMenu; },
             _ => {}
         }
     }
@@ -424,21 +444,18 @@ impl State {
     }
 
     fn add_actor( &mut self, mut a: actor::Actor ) {
-        let original_name = a.name.clone();
-        let n = 1;
-
-        while self.actors.contains_key(&a.name) {
-            a.name = original_name.clone() + " " + &n.to_string();
+        if let None = a.id {
+            a.id = Some( format!( "a{}", self.gameplay_random.random::<u32>() ) );
         }
 
         let register = a.generate_register();
         self.action_order.push(register);
 
         if let Some(map) = self.current_map.as_mut() {
-            map.exclusive_occupancy.insert( a.position, a.name.clone() );
+            map.exclusive_occupancy.insert( a.position, a.id.as_ref().unwrap().clone() );
         }
 
-        self.actors.insert( a.name.clone(), a );
+        self.actors.insert( a.id.as_ref().unwrap().clone(), a );
     }
 
     fn check_in_bounds(point: (i32, i32), size: (i32, i32)) -> bool {
@@ -477,14 +494,14 @@ fn main() -> BError {
         sight_range: 32
     };
 
-    /*let npc_kind = actor::ActorKind {
+    let npc_kind = actor::ActorKind {
         name: "NPC".to_string(),
         class: 'c',
         color: (255, 128, 64),
         breath_interest: 32,
         max_stability: 16,
         sight_range: 24
-    };*/
+    };
 
 
 
@@ -496,10 +513,43 @@ fn main() -> BError {
 
     let mut kind_table = HashMap::<String, Rc<ActorKind>>::new();
     kind_table.insert(playerpawn_kind.name.clone(), Rc::new(playerpawn_kind));
-    //kind_table.insert(npc_kind.name.clone(), Rc::new(npc_kind));
+    kind_table.insert(npc_kind.name.clone(), Rc::new(npc_kind));
+
+    let mut npcs = vec![];
+    for _i in 0..64 {
+        let mut npc = Actor {
+            is_player: false,
+            kind: kind_table["NPC"].clone(),
+            name: "Npc".to_string(),
+            id: None,
+            brain: Some(Box::new( actor::NullBrain{} )),
+            position: (0,0),
+            health: Some(HealthComponent {
+                is_alive: true,
+                stability: 16,
+                wounds: 3,
+                max_stability: 16,
+                max_wounds: 3,
+                armor_rating: 1
+            }),
+            attachments: None,
+            inventory: Inventory{
+                inventory: Vec::new(),
+                inv_volume: (32.0, 0.0),
+                inv_bulky: (3, 0)
+            },
+            overrides: HashMap::new(),
+            bonus_breath: 0,
+            fov: None,
+            memory: None
+        };
+
+        npcs.push(npc);
+    }
 
 
-    let attachments = actor::attachment::make_test_att_comp(&attach_table);
+    //let attachments = actor::attachment::make_test_att_comp(&attach_table);
+
 
 
 
@@ -507,6 +557,7 @@ fn main() -> BError {
         is_player: true,
         kind: kind_table["Player Pawn"].clone(),
         name: "Player".to_string(),
+        id: Some("Player".to_string()),
         brain: Some(Box::new( actor::PlayerControlBrain{} )),
         position: (0,0),
         health: Some(HealthComponent {
@@ -514,9 +565,10 @@ fn main() -> BError {
             stability: 16,
             wounds: 3,
             max_stability: 16,
-            max_wounds: 3
+            max_wounds: 3,
+            armor_rating: 1
         }),
-        attachments: Some(attachments),
+        attachments: None,
         inventory: Inventory{
             inventory: Vec::new(),
             inv_volume: (32.0, 0.0),
@@ -528,11 +580,7 @@ fn main() -> BError {
         memory: Some( HashSet::<Point>::new() )
     };
 
-    /*let _ = player.inventory.add_item(
-        InvItem{display_name: "Shotgun".to_string(), display_ch: '}', color: (208, 128, 16), can_stack: -1, stack: 1, size: ItemSize::Bulky, flavor_text: "Old reliable. A well-crafted weapon.".to_string(), attaches_as: None,  lick_result: LickResponse::LongText( vec!["#[]You check the safety, then lick the side...".to_string(), "#[]Tantalizing notes of grease and soot.".to_string(), "#[]Truly a trusted sister, this.".to_string()], 44 ) }
-    );*/
-
-    let shotgun = Attachment{
+    /*let shotgun = Attachment{
         kind: attach_table.get("1_Shotgun2").unwrap().clone(),
         slots: vec![]
     };
@@ -546,12 +594,12 @@ fn main() -> BError {
 
     let _ = player.inventory.add_item( sword.as_item() );
 
-    /*let leg = Attachment{
+    let leg = Attachment{
         kind: attach_table.get("Leg3").unwrap().clone(),
         slots: vec![]
     };
 
-    let _ = player.inventory.add_item( leg.as_item() );*/
+    let _ = player.inventory.add_item( leg.as_item() );
 
     let ps1 = Attachment{
         kind: attach_table.get("0_Pistol2").unwrap().clone(),
@@ -565,10 +613,10 @@ fn main() -> BError {
         slots: vec![]
     };
 
-    let _ = player.inventory.add_item( bg.as_item() );
+    let _ = player.inventory.add_item( bg.as_item() );*/
 
     let _ = player.inventory.add_item(
-        InvItem{display_name: "Regen Cell".to_string(), display_ch: 'ö', color: (255, 64, 64), can_stack: 2, stack: 3, size: ItemSize::Volume(2.1), flavor_text: "A standard healing item, administered orally. Pulsates slightly with lively essence.".to_string(), attaches_as: None, lick_result: LickResponse::FlavorText("#[inf_good]Tingles pleasantly on your tongue.#[]".to_string(), 34)  }
+        InvItem{display_name: "Regen Cell".to_string(), display_ch: 'ö', color: (255, 64, 64), can_stack: 2, stack: 3, size: ItemSize::Volume(2.1), flavor_text: "A standard healing item, administered orally. Pulsates slightly with lively essence.".to_string(), /*attaches_as: None,*/ lick_result: LickResponse::FlavorText("#[inf_good]Tingles pleasantly on your tongue.#[]".to_string(), 34)  }
     );
 
 
@@ -587,8 +635,6 @@ fn main() -> BError {
         frame: 0,
         beat: 0
     };
-
-    //gs.add_actor(npc);
 
     let bt = Tile{
         fg: (96, 96, 96),
@@ -642,7 +688,7 @@ fn main() -> BError {
         vec![ bt, wt, gt, gf ]
     );
 
-    let mut idx = 129;
+    let mut idx = 512;
     loop {
         let ps = m.is_passable(idx);
         if ps {
@@ -658,8 +704,25 @@ fn main() -> BError {
 
     player.update_fov( &m );
 
+    let mut open = vec![];
+    for x in 1..127 {
+        for y in 1..127 {
+            if m.is_coord_passable((x,y)) {
+                open.push((x,y));
+            }
+        }
+    }
+
     gs.current_map = Some(m);
     gs.add_actor(player);
+
+    for mut npc in npcs.drain(..) {
+        let pos = open.remove( gs.gameplay_random.random_range(0..open.len()) );
+
+        npc.position = (pos.0 as i32, pos.1 as i32);
+
+        gs.add_actor(npc);
+    }
 
     main_loop(context, gs)
 }

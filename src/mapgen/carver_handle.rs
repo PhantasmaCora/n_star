@@ -220,11 +220,17 @@ impl<'a, T: Eq+Clone> CarverHandle for EqViewBatchHandle<'a, T> {
     }
 
     fn carve(&mut self, point: (usize, usize)) {
+        if point.0 >= self.dim().0 || point.1 >= self.dim().1 {
+            return;
+        }
         self.fill_batch.remove(&point);
         self.carve_batch.insert(point);
     }
 
     fn fill(&mut self, point: (usize, usize)) {
+        if point.0 >= self.dim().0 || point.1 >= self.dim().1 {
+            return;
+        }
         self.carve_batch.remove(&point);
         self.fill_batch.insert(point);
     }

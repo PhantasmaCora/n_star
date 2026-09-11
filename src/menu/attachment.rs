@@ -50,7 +50,7 @@ impl OverlayMenu for AttachmentOverviewMenu {
         if let Some(attachments) = attachments_opt {
 
             let mut stack = Vec::<SlotBorrow>::new();
-            stack.push( SlotBorrow::Attached( &attachments.root ) );
+            stack.push( SlotBorrow::Attached( attachments.get(attachments.root_id).unwrap() ) );
 
             let mut n_att = 0;
 
@@ -134,7 +134,7 @@ impl OverlayMenu for AttachmentOverviewMenu {
                 SlotBorrow::Empty => {
                     occupant = "#[inf_dgry](None)#[]".to_string();
                 },
-                SlotBorrow::Bracing => {
+                SlotBorrow::Bracing(_) => {
                     occupant = "#[inf_dgry](Bracing)#[]".to_string();
                 }
             }

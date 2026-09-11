@@ -39,6 +39,7 @@ pub struct Actor {
     pub kind: Rc<ActorKind>,
     pub brain: Option<Box<dyn Brain>>,
     pub name: String,
+    pub id: Option<String>,
     pub position: (i32, i32),
     pub health: Option<HealthComponent>,
     pub attachments: Option<AttachmentsComponent>,
@@ -95,7 +96,8 @@ pub struct HealthComponent {
     pub stability: i32, // "micro" HP
     pub wounds: i32, // "macro" HP
     pub max_stability: i32,
-    pub max_wounds: i32
+    pub max_wounds: i32,
+    pub armor_rating: i32
 }
 
 impl HealthComponent {
@@ -106,6 +108,7 @@ impl HealthComponent {
             self.stability = self.max_stability;
         }
         if self.wounds <= 0 {
+            print!("dead!\n");
             self.is_alive = false;
         }
     }
@@ -133,7 +136,15 @@ impl Brain for PlayerControlBrain {
         } else {
             return TurnAttempt::AwaitingInput{ name: acting.name.clone() };
         }
+    }
+}
 
+// a brain that never takes action
+pub struct NullBrain {}
+
+impl Brain for NullBrain {
+    fn get_action(&mut self, acting: &Actor, context: &mut ActionSelectionContext) -> TurnAttempt {
+        return TurnAttempt::Selected(Command::Wait(1024));
     }
 
 }
