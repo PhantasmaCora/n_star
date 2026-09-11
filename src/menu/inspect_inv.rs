@@ -5,7 +5,7 @@ use crate::menu::{OverlayMenu, OverlayReturn, MenuContext};
 
 use crate::actor::Actor;
 use crate::turn::Command;
-use crate::item::{ItemSize, LickResponse};
+use crate::item::{ItemSize, LickResponse, ItemInspectContext};
 
 
 enum Input {
@@ -160,7 +160,8 @@ impl OverlayMenu for InspectInvItemMenu {
         batch.set( Point{x: size.0 as i32 / 2, y: 9}, ColorPair{fg: inf_grey, bg: inf_deep }, to_cp437( '┬' ) );
         batch.set( Point{x: size.0 as i32 / 2, y: 8}, ColorPair{fg: item.color.into(), bg: inf_deep }, to_cp437( item.display_ch )); // draw item
 
-        let lines = item.get_inspect_text( (size.0 - 22) as usize );
+        let ins_context = ItemInspectContext{ at: context.at };
+        let lines = item.get_inspect_text( ins_context, (size.0 - 22) as usize );
 
         let mut y = 10;
 

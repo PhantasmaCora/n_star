@@ -50,7 +50,7 @@ impl OverlayMenu for AttachmentOverviewMenu {
         if let Some(attachments) = attachments_opt {
 
             let mut stack = Vec::<SlotBorrow>::new();
-            stack.push( SlotBorrow::Attached( attachments.get(attachments.root_id).unwrap() ) );
+            stack.push( SlotBorrow::Attached( attachments.hm.get(&attachments.root_id).unwrap() ) );
 
             let mut n_att = 0;
 
@@ -59,7 +59,7 @@ impl OverlayMenu for AttachmentOverviewMenu {
 
                 if let SlotBorrow::Attached(att) = current {
                     for sidx in (0..att.slots.len() ).rev() {
-                        stack.push( att.slots[sidx].get_ref() );
+                        stack.push( attachments.borrow_slot( att.id.unwrap(), sidx ) );
                     }
                 }
 
@@ -88,7 +88,7 @@ impl OverlayMenu for AttachmentOverviewMenu {
         let inf_invl = palette_color(&"inf_invl").unwrap();
         let white: RGBA = WHITE.into();
 
-        let att_comp = actor.attachments.as_ref().unwrap();
+        let attachments = actor.attachments.as_ref().unwrap();
 
         let mut batch = DrawBatch::new();
 
@@ -111,7 +111,7 @@ impl OverlayMenu for AttachmentOverviewMenu {
 
         let rootstr = "Core".to_string();
 
-        stack.push( (rootstr, SlotBorrow::Attached( &att_comp.root ), 6) );
+        stack.push( (rootstr, SlotBorrow::Attached( &attachments.hm.get(&attachments.root_id).unwrap() ), 6) );
 
         while !stack.is_empty() {
             let current = stack.pop().unwrap();
@@ -119,7 +119,7 @@ impl OverlayMenu for AttachmentOverviewMenu {
             if let SlotBorrow::Attached(att) = current.1 {
                 for sidx in (0..att.slots.len() ).rev() {
                     let label = att.kind.provides_slots[sidx].1.clone();
-                    stack.push( (label, att.slots[sidx].get_ref(), current.2 + 1) );
+                    stack.push( (label, attachments.borrow_slot( att.id.unwrap(), sidx ), current.2 + 1) );
                 }
             }
 
@@ -134,8 +134,8 @@ impl OverlayMenu for AttachmentOverviewMenu {
                 SlotBorrow::Empty => {
                     occupant = "#[inf_dgry](None)#[]".to_string();
                 },
-                SlotBorrow::Bracing(_) => {
-                    occupant = "#[inf_dgry](Bracing)#[]".to_string();
+                SlotBorrow::Bracing(att) => {
+                    occupant = format!("#[inf_dgry](Bracing {})#[]", att.kind.display_name);
                 }
             }
 

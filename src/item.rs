@@ -1,8 +1,12 @@
+use std::collections::HashMap;
+use std::rc::Rc;
+
 
 use serde::{Deserialize, Deserializer};
 
 use textwrap::wrap;
 
+use crate::actor::attachment::{AttachmentType, PackedAttachment};
 
 
 #[derive(Clone, Debug, Deserialize)]
@@ -37,13 +41,16 @@ pub struct InvItem {
     #[serde(default="one")]
     pub stack: usize,
 
+    #[serde(default)]
+    pub attaches_as: Option<PackedAttachment>,
+
     pub size: ItemSize,
     pub lick_result: LickResponse
 }
 
 
 impl InvItem {
-    pub fn get_inspect_text(&self, width: usize) -> Vec<String> {
+    pub fn get_inspect_text(&self, context: ItemInspectContext, width: usize) -> Vec<String> {
         let mut out = Vec::new();
 
         let txt = &self.flavor_text;
@@ -52,16 +59,31 @@ impl InvItem {
 
         out.append( &mut wrap(txt, width).iter().map(|cow| "#[]".to_string() + cow ).collect() );
 
-        /*if let Some(att) = &self.attaches_as {
+        if let Some(p_att) = &self.attaches_as {
             out.push("".to_string());
             out.push("#[inf_attc]Attaches as:#[]".to_string());
-            //out.append( &mut att.kind.get_text_describe().into_iter().map( |line| "#[] ".to_string() + &line ).collect() );
-        }*/
+
+            let kind = context.at.get( &p_att.kind ).unwrap();
+            out.append( &mut kind.get_text_describe().into_iter().map( |line: String| "#[] ".to_string() + &line ).collect() );
+        }
 
         out
     }
-
 }
+
+
+pub struct ItemInspectContext<'a> {
+    pub at: &'a HashMap<String, Rc<AttachmentType>>
+}
+
+
+
+
+
+
+
+
+
 
 pub struct Inventory{
     pub inventory: Vec<InvItem>,

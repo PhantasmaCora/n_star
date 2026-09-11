@@ -1,8 +1,10 @@
 use std::collections::{VecDeque, HashMap};
+use std::rc::Rc;
 
 use bracket_lib::prelude::*;
 
 use crate::actor::Actor;
+use crate::actor::attachment::AttachmentType;
 use crate::turn::Command;
 use crate::map::Map;
 
@@ -16,8 +18,8 @@ pub use grab::GrabMenu;
 mod inspect_inv;
 pub use inspect_inv::InspectInvItemMenu;
 
-//mod attachment;
-//pub use attachment::AttachmentOverviewMenu;
+mod attachment;
+pub use attachment::AttachmentOverviewMenu;
 
 
 pub enum OverlayManagerReturn {
@@ -35,7 +37,8 @@ pub enum OverlayReturn {
 
 pub struct MenuContext<'a> {
     pub map: &'a Map,
-    pub other_actors: &'a HashMap<String, Actor>
+    pub other_actors: &'a HashMap<String, Actor>,
+    pub at: &'a HashMap<String, Rc<AttachmentType>>
 }
 
 pub struct OverlayMenuManager {

@@ -26,7 +26,7 @@ use n_star::map::tile_render::{TileRenderContext, TileRender, TileDrawType, Fixe
 
 use n_star::mapgen::MapGenerator;
 
-use n_star::menu::{ OverlayMenuManager, OverlayManagerReturn, MenuContext, GrabMenu, InventoryMenu };
+use n_star::menu::{ OverlayMenuManager, OverlayManagerReturn, MenuContext, GrabMenu, InventoryMenu, AttachmentOverviewMenu };
 
 
 
@@ -82,7 +82,8 @@ impl GameState for State {
 
                 let upd_context = MenuContext{
                     map: self.current_map.as_ref().unwrap(),
-                    other_actors: &self.actors
+                    other_actors: &self.actors,
+                    at: &self.attach_table
                 };
 
                 let menu_result = self.menu_manager.update( actor_ref, upd_context );
@@ -102,7 +103,8 @@ impl GameState for State {
 
                     let draw_context = MenuContext{
                         map: self.current_map.as_ref().unwrap(),
-                        other_actors: &self.actors
+                        other_actors: &self.actors,
+                        at: &self.attach_table
                     };
 
                     self.menu_manager.draw_overlay( ctx, actor_ref, draw_context );
@@ -412,7 +414,7 @@ impl State {
             VirtualKeyCode::Numpad9 | VirtualKeyCode::PageDown => { self.chain_player_orders.push_back(Command::MoveStep{x: 1, y:1}); },
 
             VirtualKeyCode::E => { self.menu_manager.set_mode( Box::new( InventoryMenu::new() ) ); self.game_mode = GameMode::OverlayMenu; },
-            /*VirtualKeyCode::A => { self.menu_manager.set_mode( Box::new( AttachmentOverviewMenu::new() ) ); self.game_mode = GameMode::OverlayMenu; },*/
+            VirtualKeyCode::A => { self.menu_manager.set_mode( Box::new( AttachmentOverviewMenu::new() ) ); self.game_mode = GameMode::OverlayMenu; },
             VirtualKeyCode::G => { self.menu_manager.set_mode( Box::new( GrabMenu::new() ) ); self.game_mode = GameMode::OverlayMenu; },
             _ => {}
         }
@@ -548,10 +550,7 @@ fn main() -> BError {
     }
 
 
-    //let attachments = actor::attachment::make_test_att_comp(&attach_table);
-
-
-
+    let attachments = actor::attachment::make_test_att_comp(&attach_table);
 
     let mut player = Actor {
         is_player: true,
@@ -568,7 +567,7 @@ fn main() -> BError {
             max_wounds: 3,
             armor_rating: 1
         }),
-        attachments: None,
+        attachments: Some(attachments),
         inventory: Inventory{
             inventory: Vec::new(),
             inv_volume: (32.0, 0.0),
@@ -616,7 +615,7 @@ fn main() -> BError {
     let _ = player.inventory.add_item( bg.as_item() );*/
 
     let _ = player.inventory.add_item(
-        InvItem{display_name: "Regen Cell".to_string(), display_ch: 'ö', color: (255, 64, 64), can_stack: 2, stack: 3, size: ItemSize::Volume(2.1), flavor_text: "A standard healing item, administered orally. Pulsates slightly with lively essence.".to_string(), /*attaches_as: None,*/ lick_result: LickResponse::FlavorText("#[inf_good]Tingles pleasantly on your tongue.#[]".to_string(), 34)  }
+        InvItem{display_name: "Regen Cell".to_string(), display_ch: 'ö', color: (255, 64, 64), can_stack: 2, stack: 3, size: ItemSize::Volume(2.1), flavor_text: "A standard healing item, administered orally. Pulsates slightly with lively essence.".to_string(), attaches_as: None, lick_result: LickResponse::FlavorText("#[inf_good]Tingles pleasantly on your tongue.#[]".to_string(), 34)  }
     );
 
 

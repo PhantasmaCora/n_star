@@ -3,15 +3,15 @@ use std::collections::{HashMap};
 use std::fmt::Debug;
 use std::rc::Rc;
 
-use serde::Deserialize;
-
-use rand::{prelude::*, rngs::ChaCha20Rng};
+use serde::{Deserialize, Serialize};
 
 use bracket_lib::prelude::*;
 
 use crate::Actor;
 use crate::InvItem;
 
+pub mod component;
+pub use component::AttachmentsComponent;
 
 pub mod feat_attack;
 
@@ -81,6 +81,26 @@ impl AttachmentType {
 }
 
 
+pub enum AttachmentFeatureDescriptor {
+    SingleChar{ch: char, fg: RGBA, bg: RGBA},
+    PrinterString(String, i32)
+}
+
+#[typetag::serde(tag = "type")]
+pub trait AttachmentFeature: Debug {
+    fn validate(&self, actor: &mut Actor) -> bool;
+
+    fn apply(&self, actor: &mut Actor);
+
+    fn remove(&self, actor: &mut Actor);
+
+    fn get_descriptor(&self) -> AttachmentFeatureDescriptor;
+
+    fn get_text(&self) -> Vec<String>;
+}
+
+
+
 #[derive(Clone, Debug)]
 pub enum SlotContent {
     Empty,
@@ -104,7 +124,7 @@ pub struct Attachment {
 }
 
 impl Attachment {
-    pub fn new_from_type(t: Rc<AttachmentType>) -> Self {
+    pub fn from_type(t: Rc<AttachmentType>) -> Self {
         Self {
             slots: { let mut v = vec![]; for i in 0..t.provides_slots.len() {v.push(SlotContent::Empty);} v},
             kind: t,
@@ -114,6 +134,23 @@ impl Attachment {
         }
     }
 }
+
+
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct PackedAttachment {
+    pub kind: String,
+
+    #[serde(default="empty_vec")]
+    pub children: Vec<Option<PackedAttachment>>
+}
+
+fn empty_vec() -> Vec<Option<PackedAttachment>> {
+    vec![]
+}
+
+
+
 
 // return.0 = can_attach return.1 = needs_bracing
 pub fn is_compat(att_fits: &str, slot_is: &str) -> (bool, bool) {
@@ -138,122 +175,26 @@ pub fn is_compat(att_fits: &str, slot_is: &str) -> (bool, bool) {
 
 
 
-pub struct AttachmentsComponent {
-    pub hm: HashMap::<i64, Attachment>,
-    pub root_id: i64,
-    inner_rng: OnceCell<ChaCha20Rng>
-}
-
-impl AttachmentsComponent {
-    pub fn new(mut root: Attachment) -> Self {
-        root.id = Some(0);
-        let mut hm = HashMap::new();
-        hm.insert(0, root);
-        Self {
-            hm,
-            root_id: 0,
-            inner_rng: OnceCell::new()
-        }
-    }
-
-    pub fn can_attach(&self, parent_id: i64, parent_slot: usize, child: &Attachment) -> bool {
-        let p = self.hm.get(&parent_id);
-        if let Some(parent) = p {
-            let ssize = parent.kind.provides_slots.len();
-            if parent_slot >= ssize {
-                return false;
-            }
-
-            let s = parent.slots.get(parent_slot);
-            if let Some(slot_content) = s {
-                // check whether already full
-                match slot_content {
-                    SlotContent::Empty => {},
-                    SlotContent::Attached(_) => {return false;}
-                    SlotContent::Bracing(_) => {return false;}
-                }
-            }
-
-            // check compatibility
-            let slot_type = parent.kind.provides_slots.get(parent_slot).unwrap();
-
-            let compat = is_compat( &child.kind.holder_kind, &slot_type.0 );
-
-            if compat.0 && !compat.1 {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    pub fn attach(&mut self, parent_id: i64, parent_slot: usize, mut child: Attachment) {
-        if !self.can_attach(parent_id, parent_slot, &child) {
-            return;
-        }
-
-        self.inner_rng.get_or_init( || rand::make_rng::<ChaCha20Rng>() );
-
-        if let None = child.id {
-            child.id = Some( self.inner_rng.get_mut().unwrap().random() );
-        }
-        loop {
-            if self.hm.contains_key( child.id.as_ref().unwrap() ) {
-                child.id = Some( self.inner_rng.get_mut().unwrap().random() );
-            } else {
-                break;
-            }
-        }
-        {
-            let p = self.hm.get_mut(&parent_id);
-            if let Some(parent) = p {
-                parent.slots[parent_slot] = SlotContent::Attached( *child.id.as_ref().unwrap() );
-                child.parent = Some( *parent.id.as_ref().unwrap() );
-            }
-        }
-
-        self.hm.insert(*child.id.as_ref().unwrap(), child);
-
-    }
-}
 
 
 
 
-
-
-
-pub enum AttachmentFeatureDescriptor {
-    SingleChar{ch: char, fg: RGBA, bg: RGBA},
-    PrinterString(String, i32)
-}
-
-#[typetag::serde(tag = "type")]
-pub trait AttachmentFeature: Debug {
-    fn validate(&self, actor: &mut Actor) -> bool;
-
-    fn apply(&self, actor: &mut Actor);
-
-    fn remove(&self, actor: &mut Actor);
-
-    fn get_descriptor(&self) -> AttachmentFeatureDescriptor;
-
-    fn get_text(&self) -> Vec<String>;
-}
-
-
-
-/*pub fn make_test_att_comp(table: &HashMap<String, Rc<AttachmentType>>) -> AttachmentsComponent {
+pub fn make_test_att_comp(table: &HashMap<String, Rc<AttachmentType>>) -> AttachmentsComponent {
     let opt = Attachment::from_type( table.get("Optics").unwrap().clone() );
     let larm = Attachment::from_type( table.get("Arm2").unwrap().clone() );
     let rarm = Attachment::from_type( table.get("Arm2").unwrap().clone() );
     let lleg = Attachment::from_type( table.get("Leg2").unwrap().clone() );
     let rleg = Attachment::from_type( table.get("Leg2").unwrap().clone() );;
 
-    let shell = Attachment{kind: table.get("Shell2").unwrap().clone(), slots: vec![
-        SlotContent::Attached(larm), SlotContent::Attached(rarm), SlotContent::Attached(lleg), SlotContent::Attached(rleg), SlotContent::Attached(opt)
-    ]};
+    let shell = Attachment::from_type( table.get("Shell2").unwrap().clone() );
 
-    return AttachmentsComponent {
-        root: shell
-    };
-}*/
+    let mut attcom = AttachmentsComponent::new(shell);
+
+    let _ = attcom.attach( 0, 0, larm, true );
+    let _ = attcom.attach( 0, 1, rarm, true );
+    let _ = attcom.attach( 0, 2, lleg, true );
+    let _ = attcom.attach( 0, 3, rleg, true );
+    let _ = attcom.attach( 0, 4, opt, true );
+
+    return attcom;
+}
