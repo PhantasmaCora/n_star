@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use rand::prelude::*;
 use rand::rngs::ChaCha20Rng;
@@ -6,7 +7,9 @@ use rand::rngs::ChaCha20Rng;
 use bracket_lib::prelude::{BaseMap, Algorithm2D, parse_dice_string};
 
 use crate::actor::Actor;
+use crate::actor::attachment::AttachmentType;
 use crate::combat::{map_penetration, MeleeAttackSpec};
+use crate::item::InvItem;
 use crate::map;
 use crate::map::{NonExclusiveOccupant};
 
@@ -16,7 +19,9 @@ pub enum Command {
     Wait(i32),
     MoveStep{x: i32, y: i32},
     DropItem(usize),
-    GrabItem{x: i32, y: i32, idx: usize}
+    GrabItem{x: i32, y: i32, idx: usize},
+    AttachAction{parent: i64, slot: usize, source: AttachmentAcquireSource},
+    DetachAction{parent: i64, slot: usize}
 }
 
 #[derive(PartialEq)]
@@ -36,6 +41,7 @@ pub enum ActionResult {
 pub struct ActionResolutionContext<'a> {
     pub map: &'a mut map::Map,
     pub other_actors: &'a mut HashMap<String, Actor>,
+    pub at: &'a HashMap<String, Rc<AttachmentType>>,
     pub rng: &'a mut ChaCha20Rng
 
 }
@@ -49,7 +55,9 @@ pub fn map_command(cmd: Command) -> Box<dyn ActionResolver> {
         Command::Wait(breath) => { return Box::new(JustDepleteBreath{amount: breath}); },
         Command::MoveStep{x, y} => { return Box::new(MoveStep{x,y}); },
         Command::DropItem(iidx) => { return Box::new( DropItem(iidx) ); },
-        Command::GrabItem{x,y,idx} => {return Box::new( GrabItem{x,y,idx} ); }
+        Command::GrabItem{x,y,idx} => {return Box::new( GrabItem{x,y,idx} ); },
+        Command::AttachAction{parent, slot, source} => {return Box::new( AttachAction{parent, slot, source} );},
+        Command::DetachAction{parent, slot} => {return Box::new( DetachAction{parent, slot} ); }
     }
 }
 
@@ -202,3 +210,143 @@ impl ActionResolver for MeleeAttack {
         return ActionResult::Failed;
     }
 }
+
+
+
+
+#[derive(Debug, PartialEq)]
+pub enum AttachmentAcquireSource {
+    Inventory(usize),
+    Floor{x: i32, y: i32, idx: usize}
+}
+
+pub struct AttachAction {
+    parent: i64,
+    slot: usize,
+    source: AttachmentAcquireSource
+}
+impl ActionResolver for AttachAction {
+    fn resolve(&self, acting: &mut Actor, context: &mut ActionResolutionContext) -> ActionResult {
+
+        if acting.attachments.is_none() {
+            return ActionResult::Failed;
+        }
+
+        let item: InvItem;
+
+        match self.source {
+            AttachmentAcquireSource::Inventory(idx) => {
+                item = acting.inventory.remove_item(idx).unwrap();
+            },
+            AttachmentAcquireSource::Floor{x, y, idx} => {
+                let opt = self.handle_grab( acting, context, x, y, idx );
+                if let Some(it) = opt {
+                    item = it;
+                } else {
+                    return ActionResult::Failed;
+                }
+            }
+        }
+
+        let mut return_item = false;
+
+        if let Some(ref patt) = item.attaches_as {
+            if let Some(ref mut attachments) = acting.attachments {
+                let res = attachments.attach_packed( context.at, self.parent, self.slot, patt.clone(), false );
+
+                if let Err(pfal) = res {
+
+                    return_item = true;
+
+                    return ActionResult::Failed;
+                } else if let Ok(mut old) = res {
+                    for patt in old.drain(..) {
+                        let it = patt.to_item( context.at );
+                        if let Some(oitem) = it {
+                            let inv_res = acting.inventory.add_item(oitem);
+                            if let Err(fitem) = inv_res {
+                                let neo = NonExclusiveOccupant::Item(fitem);
+                                context.map.add_neo( neo, acting.position );
+                            }
+                        }
+                    }
+
+                    return ActionResult::Succeeded(64);
+                }
+            }
+        }
+
+        if return_item {
+            match self.source {
+                AttachmentAcquireSource::Inventory(_) => {
+                    acting.inventory.add_item(item);
+                },
+                AttachmentAcquireSource::Floor{x, y, ..} => {
+                    let neo = NonExclusiveOccupant::Item(item);
+                    context.map.add_neo( neo, (acting.position.0 + x, acting.position.1 + y) );
+                }
+            }
+        }
+
+        return ActionResult::Failed;
+    }
+}
+
+impl AttachAction {
+    fn handle_grab(&self, acting: &mut Actor, context: &mut ActionResolutionContext, x: i32, y: i32, idx: usize) -> Option<InvItem> {
+        // validate
+        if x.abs() > 1 || y.abs() > 1 {
+            return None;
+        }
+
+        let gpos = (acting.position.0 + x, acting.position.1 + y);
+
+        let opt_item = context.map.extract_neo(gpos, idx);
+
+        if let Some(neo) = opt_item {
+            if let NonExclusiveOccupant::Item(item) = neo {
+                return Some(item);
+            } else {
+                context.map.add_neo( neo, gpos ); // its not an item so put it back
+                return None;
+            }
+        } else {
+            // invalid index
+            return None;
+        }
+    }
+}
+
+
+pub struct DetachAction {
+    parent: i64,
+    slot: usize
+}
+impl ActionResolver for DetachAction {
+    fn resolve(&self, acting: &mut Actor, context: &mut ActionResolutionContext) -> ActionResult {
+        if acting.attachments.is_none() {
+            return ActionResult::Failed;
+        }
+
+        let comp = acting.attachments.as_mut().unwrap();
+
+        let res = comp.remove_and_pack(self.parent, self.slot, false);
+
+        if let Ok(mut v) = res {
+            for patt in v.drain(..) {
+                let it = patt.to_item( context.at );
+                if let Some(oitem) = it {
+                    let inv_res = acting.inventory.add_item(oitem);
+                    if let Err(fitem) = inv_res {
+                        let neo = NonExclusiveOccupant::Item(fitem);
+                        context.map.add_neo( neo, acting.position );
+                    }
+                }
+            }
+            return ActionResult::Succeeded(16);
+        } else {
+            return ActionResult::Failed;
+        }
+    }
+}
+

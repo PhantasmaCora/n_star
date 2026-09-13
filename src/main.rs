@@ -189,6 +189,7 @@ impl State {
                                 let mut resctx = turn::ActionResolutionContext{
                                     map,
                                     other_actors: &mut self.actors,
+                                    at: &self.attach_table,
                                     rng: &mut self.gameplay_random
                                 };
 
@@ -586,33 +587,42 @@ fn main() -> BError {
 
     let _ = player.inventory.add_item( shotgun.as_item() );
 
+    let leg = Attachment{
+    kind: attach_table.get("Leg3").unwrap().clone(),
+    slots: vec![]
+    };
+
+    let _ = player.inventory.add_item( leg.as_item() );*/
+
     let sword = Attachment{
         kind: attach_table.get("1_Sword1").unwrap().clone(),
-        slots: vec![]
+        slots: vec![],
+        brace: None,
+        parent: None,
+        id: None
     };
 
-    let _ = player.inventory.add_item( sword.as_item() );
-
-    let leg = Attachment{
-        kind: attach_table.get("Leg3").unwrap().clone(),
-        slots: vec![]
-    };
-
-    let _ = player.inventory.add_item( leg.as_item() );
+    let _ = player.inventory.add_item( sword.as_simple_item() );
 
     let ps1 = Attachment{
         kind: attach_table.get("0_Pistol2").unwrap().clone(),
-        slots: vec![]
+        slots: vec![],
+        brace: None,
+        parent: None,
+        id: None
     };
 
-    let _ = player.inventory.add_item( ps1.as_item() );
+    let _ = player.inventory.add_item( ps1.as_simple_item() );
 
     let bg = Attachment{
         kind: attach_table.get("1_BeamGun1").unwrap().clone(),
-        slots: vec![]
+        slots: vec![],
+        brace: None,
+        parent: None,
+        id: None
     };
 
-    let _ = player.inventory.add_item( bg.as_item() );*/
+    let _ = player.inventory.add_item( bg.as_simple_item() );
 
     let _ = player.inventory.add_item(
         InvItem{display_name: "Regen Cell".to_string(), display_ch: 'ö', color: (255, 64, 64), can_stack: 2, stack: 3, size: ItemSize::Volume(2.1), flavor_text: "A standard healing item, administered orally. Pulsates slightly with lively essence.".to_string(), attaches_as: None, lick_result: LickResponse::FlavorText("#[inf_good]Tingles pleasantly on your tongue.#[]".to_string(), 34)  }

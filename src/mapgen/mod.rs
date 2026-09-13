@@ -293,7 +293,7 @@ impl MapGenerator {
 
     }*/
 
-        {
+        /*{
             let view = uarr.slice_mut(s![ 1..self.w, 1..self.h ]);
 
             let bpg = BinaryPartitionRuinGrid {
@@ -341,7 +341,7 @@ impl MapGenerator {
             };
 
             cct.connect_limited_astar( &mut lch, (0.1, 1.0, 0.96), &mut rng );
-        }
+        }*/
         //print!("finished grid cuts\n");
 
 

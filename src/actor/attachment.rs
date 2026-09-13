@@ -27,7 +27,7 @@ pub struct AttachmentType {
     pub weight: f32,
     pub features: Vec<Box<dyn AttachmentFeature>>,
     pub provides_slots: Vec<(String, String)>,
-    pub item_proto: Option<InvItem>
+    pub item_proto: InvItem
 }
 
 impl AttachmentType {
@@ -43,6 +43,20 @@ impl AttachmentType {
         }
 
         // apply descriptors from features here too
+        for f in self.features.iter() {
+            out.push( f.get_descriptor() );
+        }
+
+        out
+    }
+
+    pub fn get_descriptors_excludeint(&self) -> Vec<AttachmentFeatureDescriptor> {
+        let mut out = vec![];
+
+        // apply descriptors from features here
+        for f in self.features.iter() {
+            out.push( f.get_descriptor() );
+        }
 
         out
     }
@@ -133,9 +147,27 @@ impl Attachment {
             id: None
         }
     }
+
+    pub fn as_simple_item(self) -> InvItem {
+        let mut it = self.kind.item_proto.clone();
+        it.attaches_as = Some( PackedAttachment::simple_kind( self.kind.name.clone() ) );
+        return it;
+    }
+
+    pub fn to_packed(&self) -> PackedAttachment {
+        let slotcount = self.kind.provides_slots.len();
+        PackedAttachment{
+            kind: self.kind.name.clone(),
+            children: {let mut v = vec![]; for _ in 0..slotcount {v.push(None)}; v}
+        }
+    }
 }
 
 
+
+fn empty_vec() -> Vec<Option<PackedAttachment>> {
+    vec![]
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PackedAttachment {
@@ -145,8 +177,60 @@ pub struct PackedAttachment {
     pub children: Vec<Option<PackedAttachment>>
 }
 
-fn empty_vec() -> Vec<Option<PackedAttachment>> {
-    vec![]
+impl PackedAttachment {
+    pub fn simple_kind(k: String) -> Self {
+        Self {
+            kind: k,
+            children: vec![]
+        }
+    }
+
+    pub fn describe( &self, at: &HashMap<String, Rc<AttachmentType>> ) -> (String, Vec<AttachmentFeatureDescriptor>) {
+        let kind = at.get(&self.kind).unwrap();
+
+        let s = kind.display_name.clone();
+        let mut dv = kind.get_descriptors();
+
+        if self.children.len() > 0 {
+            let mut stack = vec![];
+            let mut res = vec![];
+            for c in self.children.iter() {
+                if let Some(child) = c {
+                    stack.push( child );
+                }
+            }
+            while !stack.is_empty() {
+                if let Some(current) = stack.pop() {
+                    for c in current.children.iter() {
+                        if let Some(child) = c {
+                            stack.push(child);
+                        }
+                    }
+                    res.push(current);
+                }
+            }
+            for child in res.drain(..).rev() {
+                let kind = at.get(&child.kind).unwrap();
+                let mut desc = kind.get_descriptors_excludeint();
+                desc.reverse();
+                dv.append( &mut desc );
+            }
+        }
+
+        return (s, dv);
+    }
+
+    pub fn to_item(self, at: &HashMap<String, Rc<AttachmentType>> ) -> Option<InvItem> {
+        let k = at.get(&self.kind);
+
+        if let Some(kind) = k {
+            let mut it = kind.item_proto.clone();
+            it.attaches_as = Some(self);
+            return Some(it);
+        }
+        return None;
+    }
+
 }
 
 

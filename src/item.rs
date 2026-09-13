@@ -81,10 +81,6 @@ pub struct ItemInspectContext<'a> {
 
 
 
-
-
-
-
 pub struct Inventory{
     pub inventory: Vec<InvItem>,
     pub inv_volume: (f32, f32),
