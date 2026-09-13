@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 
 use ndarray::prelude::*;
@@ -18,7 +18,7 @@ mod carver_handle;
 use carver_handle::{BoolViewBatchHandle, WideChainCarverHandle};
 
 mod limited_carver_handle;
-use limited_carver_handle::{LimitedCarverHandle, MapBatchHandle};
+use limited_carver_handle::LimitedCarverHandle;
 
 mod cellauto;
 use cellauto::JAGGED_CAVES;
@@ -32,7 +32,6 @@ mod conncomp;
 use conncomp::{ConnCompLabeler, ConnCompTunneler};
 
 mod binary_partition;
-use binary_partition::{BinaryPartitioner, BinaryPartitionRuinGrid};
 
 mod room_placer;
 
@@ -259,7 +258,7 @@ impl MapGenerator {
         }
         //print!("finished connectivity\n");
 
-        let mut uarr = barr.map( |b| if *b {1} else {0} );
+        let uarr = barr.map( |b| if *b {1} else {0} );
 
         /*for _ in 0..3 {
          *            let w = rng.random_range(self.w/3..self.w/2);

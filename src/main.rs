@@ -232,7 +232,7 @@ impl State {
                 let mut dead_keys = vec![];
 
                 for k in self.actors.keys() {
-                    let mut dead = false;
+                    let dead = false;
                     {
                         let a = self.actors.get(k).unwrap();
                         if let Some(hc) = &a.health {
@@ -520,7 +520,7 @@ fn main() -> BError {
 
     let mut npcs = vec![];
     for _i in 0..64 {
-        let mut npc = Actor {
+        let npc = Actor {
             is_player: false,
             kind: kind_table["NPC"].clone(),
             name: "Npc".to_string(),

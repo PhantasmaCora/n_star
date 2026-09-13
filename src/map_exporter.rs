@@ -6,7 +6,7 @@ use imageproc::compose::{ crop, replace_mut };
 use imageproc::map::map_pixels;
 
 use bracket_lib::prelude::to_cp437;
-use bracket_lib::terminal::{RGBA, Point};
+use bracket_lib::terminal::RGBA;
 
 
 use n_star::map::{Map, Tile};

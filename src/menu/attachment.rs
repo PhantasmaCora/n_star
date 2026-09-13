@@ -4,7 +4,7 @@ use bracket_lib::prelude::*;
 use crate::menu::{OverlayMenu, OverlayReturn, MenuContext};
 
 use crate::actor::Actor;
-use crate::actor::attachment::{SlotBorrow, AttachmentFeatureDescriptor, component::AttachmentsComponent, is_compat};
+use crate::actor::attachment::{SlotBorrow, AttachmentFeatureDescriptor, is_compat};
 use crate::item::Inventory;
 use crate::map::NonExclusiveOccupant;
 use crate::turn::{AttachmentAcquireSource, Command};
