@@ -156,11 +156,15 @@ impl<'a> CarverHandle for BoolViewBatchHandle<'a> {
     }
 
     fn carve(&mut self, point: (usize, usize)) {
+        let sz = self.view.dim();
+        if point.0 >= sz.0 || point.1 >= sz.1 { return; }
         self.fill_batch.remove(&point);
         self.carve_batch.insert(point);
     }
 
     fn fill(&mut self, point: (usize, usize)) {
+        let sz = self.view.dim();
+        if point.0 >= sz.0 || point.1 >= sz.1 { return; }
         self.carve_batch.remove(&point);
         self.fill_batch.insert(point);
     }

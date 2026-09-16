@@ -73,7 +73,7 @@ impl MapGenerator {
             {
                 let mut wide_ch = WideChainCarverHandle{
                     chain: Box::new(&mut ch),
-                    radius: (2,2)
+                    radius: (1,1)
                 };
                 cct.connect_all_astar(&mut wide_ch, (0.05, 1.0, 1.5), &mut rng);
             }
@@ -256,7 +256,7 @@ impl MapGenerator {
                 cct.connect_all_astar(&mut wide_ch, (0.05, 1.0, 1.5), &mut rng);
             }
         }
-        //print!("finished connectivity\n");
+        print!("finished connectivity\n");
 
         let uarr = barr.map( |b| if *b {1} else {0} );
 

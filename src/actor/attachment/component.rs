@@ -1,20 +1,20 @@
-use std::cell::OnceCell;
+use std::cell::{OnceCell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
 
 
 use rand::{prelude::*, rngs::ChaCha20Rng};
 
-
-
 use crate::actor::attachment::{Attachment, AttachmentType, SlotContent, SlotBorrow, is_compat, PackedAttachment};
-
+use crate::timing::TimingHandle;
+use crate::turn::Command;
 
 
 
 pub struct AttachmentsComponent {
     pub hm: HashMap::<i64, Attachment>,
     pub root_id: i64,
+    pub timers: HashMap<i64, Vec<Rc<RefCell<TimingHandle>>>>,
     inner_rng: OnceCell<ChaCha20Rng>
 }
 
@@ -26,8 +26,22 @@ impl AttachmentsComponent {
         Self {
             hm,
             root_id: 0,
+            timers: HashMap::new(),
             inner_rng: OnceCell::new()
         }
+    }
+
+    pub fn maintain(&mut self) -> Vec<Command> {
+        for (id, tvec) in self.timers.iter() {
+            for t in tvec.iter() {
+                let mut tbm = t.borrow_mut();
+                if tbm.fired && tbm.is_valid {
+                    tbm.fired = false;
+                    // act accordingly
+                }
+            }
+        }
+        vec![]
     }
 
     pub fn borrow_slot(&self, parent_id: i64, parent_slot: usize) -> SlotBorrow {
@@ -309,6 +323,8 @@ impl AttachmentsComponent {
                 let mut stack: Vec<(Vec<usize>, Attachment)> = vec![];
                 let mut results = vec![];
 
+                let mut removed_ids = vec![];
+
                 stack.push( (vec![], att) );
                 while !stack.is_empty() {
                     let Some((mut addr, mut current)) = stack.pop() else {break;};
@@ -320,6 +336,8 @@ impl AttachmentsComponent {
                             SlotContent::Attached(cid) => {
                                 let opt = self.hm.remove(&cid);
                                 if let Some(catt) = opt {
+                                    removed_ids.push(cid);
+
                                     if catt.kind.integrated {
                                         let mut caddr = addr.clone();
                                         caddr.push( idx );
@@ -332,6 +350,8 @@ impl AttachmentsComponent {
                             SlotContent::Bracing(cid) => {
                                 let opt = self.hm.remove(&cid);
                                 if let Some(catt) = opt {
+                                    removed_ids.push(cid);
+
                                     stack.push( (vec![], catt) );
                                 }
                             },

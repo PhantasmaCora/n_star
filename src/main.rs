@@ -19,6 +19,8 @@ use n_star::actor::attachment::{Attachment, AttachmentType};
 use n_star::turn;
 use n_star::turn::{Command, TurnAttempt, ActionResult};
 
+use n_star::timing::{TurnOrderRegister, TurnTaker};
+
 use n_star::item::{Inventory, InvItem, ItemSize, LickResponse};
 
 use n_star::map::{Map, Tile, NonExclusiveOccupant};
@@ -44,7 +46,7 @@ struct State {
     kind_table: HashMap<String, Rc<ActorKind>>,
     attach_table: HashMap<String, Rc<AttachmentType>>,
     actors: HashMap<String, Actor>,
-    action_order: Vec<actor::ActorRegister>,
+    action_order: Vec<TurnOrderRegister>,
     player_orders: Option<Command>,
     chain_player_orders: VecDeque<Command>,
     current_map: Option<Map>,
@@ -159,81 +161,100 @@ impl State {
                 if up_register.breath <= 0 {
                     self.action_order.push(up_register);
                     self.dispense_breath();
-
                 } else {
-                    if let Some(mut up_actor) = self.actors.remove( &up_register.name ) {
+                    let mut push_back = true;
 
-                        self.dechain();
+                    match up_register.owner {
+                        TurnTaker::Actor(ref name) => {
+                            if let Some(mut up_actor) = self.actors.remove( name ) {
 
-                        let map = self.current_map.as_mut().expect("No current map!");
+                                self.dechain();
 
-                        let mut asc = actor::ActionSelectionContext{
-                            player_orders: &mut self.player_orders,
-                            map,
-                            other_actors: &self.actors,
-                            rng: &mut self.gameplay_random
-                        };
+                                let map = self.current_map.as_mut().expect("No current map!");
 
-                        let mut tr = up_actor.get_action(&mut asc);
-
-                        while tr == TurnAttempt::CallMeAgain {
-                            tr = up_actor.get_action(&mut asc);
-                        }
-
-                        match tr {
-                            TurnAttempt::CallMeAgain => {
-                                // shouldnt be reachable given above while loop
-                            },
-                            TurnAttempt::Selected(action) => { // taking action!
-                                let mut ar = turn::map_command(action);
-                                let mut resctx = turn::ActionResolutionContext{
+                                let mut asc = actor::ActionSelectionContext{
+                                    player_orders: &mut self.player_orders,
                                     map,
-                                    other_actors: &mut self.actors,
-                                    at: &self.attach_table,
+                                    other_actors: &self.actors,
                                     rng: &mut self.gameplay_random
                                 };
 
-                                let mut actlooping = true;
-                                while actlooping {
-                                    let result = ar.resolve( &mut up_actor, &mut resctx );
+                                let mut tr = up_actor.get_action(&mut asc);
 
-                                    match result {
-                                        ActionResult::Succeeded(breath_cost) => {
-                                            up_register.breath -= breath_cost;
-                                            actlooping = false;
-                                        },
-                                        ActionResult::TryAlternate(abox) => {
-                                            ar = abox;
-                                        },
-                                        ActionResult::Failed => {
-                                            if up_actor.is_player {
-                                                // notify player that their attempt failed
-                                            } else {
-                                                up_register.breath -= 16; // mild confusion penalty
+                                while tr == TurnAttempt::CallMeAgain {
+                                    tr = up_actor.get_action(&mut asc);
+                                }
+
+                                match tr {
+                                    TurnAttempt::CallMeAgain => {
+                                        // shouldnt be reachable given above while loop
+                                    },
+                                    TurnAttempt::Selected(action) => { // taking action!
+                                        let mut ar = turn::map_command(action);
+                                        let mut resctx = turn::ActionResolutionContext{
+                                            map,
+                                            other_actors: &mut self.actors,
+                                            at: &self.attach_table,
+                                            rng: &mut self.gameplay_random
+                                        };
+
+                                        let mut actlooping = true;
+                                        while actlooping {
+                                            let result = ar.resolve( &mut up_actor, &mut resctx );
+
+                                            match result {
+                                                ActionResult::Succeeded(breath_cost) => {
+                                                    up_register.breath -= breath_cost;
+                                                    actlooping = false;
+                                                },
+                                                ActionResult::TryAlternate(abox) => {
+                                                    ar = abox;
+                                                },
+                                                ActionResult::Failed => {
+                                                    if up_actor.is_player {
+                                                        // notify player that their attempt failed
+                                                    } else {
+                                                        up_register.breath -= 16; // mild confusion penalty
+                                                    }
+
+                                                    actlooping = false;
+                                                }
                                             }
-
-                                            actlooping = false;
                                         }
                                     }
+                                    TurnAttempt::AwaitingInput{name: who} => {
+                                        self.actor_awaiting_input = Some(who); looping = false;
+                                    }
                                 }
+
+                                self.actors.insert(up_actor.id.as_ref().unwrap().clone(), up_actor);
+                            } else {
+                                // if the actor is not found, the actor register is no longer needed and should not be pushed back to the turn order
+                                push_back = false;
                             }
-                            TurnAttempt::AwaitingInput{name: who} => {
-                                self.actor_awaiting_input = Some(who); looping = false;
+                        },
+                        TurnTaker::Timer(ref handle) => {
+                            let mut handle_mut = handle.borrow_mut();
+
+                            if handle_mut.is_valid {
+                                handle_mut.fired = true; // ready
+
+                            } else {
+                                push_back = false; // dead
                             }
                         }
+                    }
 
-                        self.actors.insert(up_actor.name.clone(), up_actor);
+                    if push_back {
                         self.action_order.push(up_register);
                     }
-                    // if the actor is not found, the actor register is no longer needed and should not be pushed back to the turn order
                 }
 
                 // maintain phase. clear out anybody who died etc.
                 let mut dead_keys = vec![];
 
                 for k in self.actors.keys() {
-                    let dead = false;
-                    {
+                    { // death handling part 1
                         let a = self.actors.get(k).unwrap();
                         if let Some(hc) = &a.health {
                             if !hc.is_alive {
@@ -429,20 +450,24 @@ impl State {
 
     // called when every actor is at zero or negative breath
     fn dispense_breath(&mut self) {
-        for ar in self.action_order.iter_mut() {
-            if let Some(corresponding_actor) = self.actors.get_mut( &ar.name ) {
-                ar.breath += corresponding_actor.bonus_breath;
-                corresponding_actor.bonus_breath = 0;
+        for tor in self.action_order.iter_mut() {
+            match &tor.owner {
+                TurnTaker::Actor(id)  => {
+                    if let Some(corresponding_actor) = self.actors.get_mut( id ) {
+                        tor.breath += corresponding_actor.bonus_breath;
+                        corresponding_actor.bonus_breath = 0;
 
-                if ar.breath < 0 { // apply interest if in breath debt
-                    let interest = ar.breath * corresponding_actor.kind.breath_interest / 4096;
-                    ar.breath += max(interest, -768); // limit interest gain so that we dont get stuck forever
-                }
-
-                ar.breath += 1024; // "one turn" by default is 1024 units of time
+                        if tor.breath < 0 { // apply interest if in breath debt
+                            let interest = tor.breath * corresponding_actor.kind.breath_interest / 4096;
+                            tor.breath += max(interest, -768); // limit interest gain so that we dont get stuck forever
+                        }
+                    }
+                },
+                TurnTaker::Timer(_) => {}
             }
-        }
 
+            tor.breath += 1024; // "one turn" by default is 1024 units of time
+        }
         self.beat += 1;
     }
 
@@ -529,9 +554,9 @@ fn main() -> BError {
             position: (0,0),
             health: Some(HealthComponent {
                 is_alive: true,
-                stability: 16,
+                stability: 9,
                 wounds: 3,
-                max_stability: 16,
+                max_stability: 9,
                 max_wounds: 3,
                 armor_rating: 1
             }),
@@ -696,6 +721,7 @@ fn main() -> BError {
     let m = mg.generate_map(
         vec![ bt, wt, gt, gf ]
     );
+    //print!("mapgen done\n");
 
     let mut idx = 512;
     loop {
@@ -712,6 +738,7 @@ fn main() -> BError {
     player.position = (pt.x, pt.y);
 
     player.update_fov( &m );
+    //print!("player placed\n");
 
     let mut open = vec![];
     for x in 1..127 {

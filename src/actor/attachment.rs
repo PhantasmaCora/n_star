@@ -41,9 +41,11 @@ impl AttachmentType {
             } );
         }
 
-        // apply descriptors from features here too
+        // apply descriptors from features here
         for f in self.features.iter() {
-            out.push( f.get_descriptor() );
+            if let Some(desc) = f.get_descriptor() {
+                out.push(desc);
+            }
         }
 
         out
@@ -54,7 +56,9 @@ impl AttachmentType {
 
         // apply descriptors from features here
         for f in self.features.iter() {
-            out.push( f.get_descriptor() );
+            if let Some(desc) = f.get_descriptor() {
+                out.push(desc);
+            }
         }
 
         out
@@ -107,7 +111,7 @@ pub trait AttachmentFeature: Debug {
 
     fn remove(&self, actor: &mut Actor);
 
-    fn get_descriptor(&self) -> AttachmentFeatureDescriptor;
+    fn get_descriptor(&self) -> Option<AttachmentFeatureDescriptor>;
 
     fn get_text(&self) -> Vec<String>;
 }

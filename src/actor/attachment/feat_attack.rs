@@ -25,8 +25,8 @@ impl AttachmentFeature for ProvidesMeleeAttack {
 
     fn remove(&self, actor: &mut Actor) {}
 
-    fn get_descriptor(&self) -> AttachmentFeatureDescriptor {
-        AttachmentFeatureDescriptor::SingleChar{ch: 'M', fg: palette_color(&"inf_attc").unwrap(), bg: palette_color(&"inf_deep").unwrap()}
+    fn get_descriptor(&self) -> Option<AttachmentFeatureDescriptor> {
+        Some( AttachmentFeatureDescriptor::SingleChar{ch: 'M', fg: palette_color(&"inf_attc").unwrap(), bg: palette_color(&"inf_deep").unwrap()} )
     }
 
     fn get_text(&self) -> Vec<String> {
@@ -83,8 +83,8 @@ impl AttachmentFeature for ProvidesRangedAttack {
 
     fn remove(&self, actor: &mut Actor) {}
 
-    fn get_descriptor(&self) -> AttachmentFeatureDescriptor {
-        AttachmentFeatureDescriptor::SingleChar{ch: 'R', fg: palette_color(&"inf_attc").unwrap(), bg: palette_color(&"inf_deep").unwrap()}
+    fn get_descriptor(&self) -> Option<AttachmentFeatureDescriptor> {
+        Some( AttachmentFeatureDescriptor::SingleChar{ch: 'R', fg: palette_color(&"inf_attc").unwrap(), bg: palette_color(&"inf_deep").unwrap()} )
     }
 
     fn get_text(&self) -> Vec<String> {

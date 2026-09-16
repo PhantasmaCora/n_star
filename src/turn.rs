@@ -8,7 +8,7 @@ use bracket_lib::prelude::{BaseMap, Algorithm2D, parse_dice_string};
 
 use crate::actor::Actor;
 use crate::actor::attachment::AttachmentType;
-use crate::combat::{map_penetration, MeleeAttackSpec};
+use crate::combat::{map_penetration, describe_hit, MeleeAttackSpec};
 use crate::item::InvItem;
 use crate::map;
 use crate::map::{NonExclusiveOccupant};
@@ -80,7 +80,7 @@ impl ActionResolver for MoveStep {
         let end_pos = (acting.position.0 + self.x, acting.position.1 + self.y);
 
         if let Some( other_id ) = context.map.exclusive_occupancy.get( &end_pos ) {
-            return ActionResult::TryAlternate( Box::new( MeleeAttack{target: other_id.clone(), attack: MeleeAttackSpec{ pen_rating: 1, damage_die: "1d4".to_string(), technique_rating: 36} } ))
+            return ActionResult::TryAlternate( Box::new( MeleeAttack{target: other_id.clone(), attack: MeleeAttackSpec{ pen_rating: 2, damage_die: "1d8+1".to_string(), technique_rating: 36} } ))
         };
 
         let exits = context.map.get_available_exits( context.map.point2d_to_index( start_pos.into() ) );
@@ -89,7 +89,7 @@ impl ActionResolver for MoveStep {
         if idxs.contains( &context.map.point2d_to_index( end_pos.into() ) ) {
             context.map.exclusive_occupancy.remove( &acting.position );
             acting.position = end_pos;
-            context.map.exclusive_occupancy.insert(acting.position, acting.name.clone());
+            context.map.exclusive_occupancy.insert(acting.position, acting.id.as_ref().unwrap().clone());
 
             let dsc = self.x.abs() + self.y.abs();
             let mut f: f32 = 1.0; // only accounts for ortho and diagonal steps
@@ -166,6 +166,7 @@ impl ActionResolver for MeleeAttack {
         if let Some(targeted) = context.other_actors.get_mut(&self.target) {
             let attacker_pos = acting.position;
             let target_pos = targeted.position;
+            let is_p = targeted.is_player;
 
             let exits = context.map.get_available_exits( context.map.point2d_to_index( attacker_pos.into() ) );
             let (idxs, costs): (Vec<_>, Vec<_>) = exits.into_iter().unzip();
@@ -186,8 +187,6 @@ impl ActionResolver for MeleeAttack {
                         }
                     }
 
-                    print!("{}... {} rating, {} pens. ", f, pen_base, pens);
-
                     let dt = parse_dice_string( &self.attack.damage_die ).unwrap();
                     let mut dmg = 0;
 
@@ -198,7 +197,11 @@ impl ActionResolver for MeleeAttack {
                         dmg += dt.bonus;
                     }
 
-                    print!( "{} takes {} damage!\n", &self.target, dmg );
+                    if is_p && hc.stability >= hc.max_stability * 3 / 4 && dmg >= hc.stability {
+                        dmg = hc.stability - 1;
+                    }
+
+                    print!( "{} {} takes {} damage!\n", describe_hit( pens, dmg ), &self.target, dmg );
 
                     hc.take_damage( dmg );
                     return ActionResult::Succeeded( (1024 as f32 / self.attack.technique_rating as f32) as i32 );

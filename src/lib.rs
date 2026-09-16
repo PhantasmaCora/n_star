@@ -6,6 +6,8 @@ use actor::attachment::AttachmentType;
 
 pub mod turn;
 
+pub mod timing;
+
 pub mod combat;
 
 pub mod npc_brain;

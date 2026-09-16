@@ -10,6 +10,7 @@ use bracket_lib::pathfinding::field_of_view_set;
 use crate::turn::{Command, TurnAttempt};
 use crate::map::Map;
 use crate::item::Inventory;
+use crate::timing::{TurnOrderRegister, TurnTaker};
 
 
 pub mod attachment;
@@ -20,17 +21,12 @@ pub struct ActorKind {
     pub name: String,
     pub class: char,
     pub color: (u8, u8, u8),
-    pub breath_interest: i32, // debt increases by this factor at engine tick-up. expressed as a fixed fraction of 4096, describing the added portion rather than the total.
+    pub breath_interest: i32, // debt increases by this factor at engine tick-up. expressed as a fixed fraction of 4096, describing the added portion rather than the total. could also be less than zero...?
     pub max_stability: i32,
     pub sight_range: i32
 }
 
 pub struct ActorOverrideTrait {}
-
-pub struct ActorRegister {
-    pub name: String,
-    pub breath: i32 // action points
-}
 
 
 
@@ -76,8 +72,8 @@ impl Actor {
 
 // organization -- utilities
 impl Actor {
-    pub fn generate_register(&self) -> ActorRegister {
-        ActorRegister { name: self.name.clone(), breath: 0 }
+    pub fn generate_register(&self) -> TurnOrderRegister {
+        TurnOrderRegister { breath: 0, owner: TurnTaker::Actor( self.id.as_ref().unwrap().clone() ) }
     }
 }
 
